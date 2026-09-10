@@ -1,0 +1,121 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e6e6e9 0%, #b9b9c0 50%, #7d7d86 100%);
+  position: relative;
+  overflow: hidden;
+  font-family: 'Segoe UI', sans-serif;
+  padding: 1rem;
+}
+
+.cat {
+  position: absolute;
+  opacity: 0.75;
+  animation: float 6s ease-in-out infinite;
+  user-select: none;
+  pointer-events: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(10deg); }
+}
+
+.login-card {
+  background: #f6f6f7;
+  border: 2px solid #cfcfd4;
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 32px rgba(60, 60, 68, 0.25);
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.login-card h1 {
+  margin: 0 0 0.25rem;
+  color: #4a4a52;
+  font-size: 1.6rem;
+}
+
+.login-card .subtitle {
+  margin: 0 0 1.5rem;
+  color: #74747c;
+  font-size: 0.9rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.login-form input {
+  padding: 0.7rem 1rem;
+  border: 2px solid #dcdce0;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #fff;
+}
+
+.login-form input:focus {
+  border-color: #7d7d86;
+}
+
+.login-form button {
+  margin-top: 0.4rem;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #8b8b94, #57575f);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.login-form button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(87, 87, 95, 0.4);
+}
+
+.login-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.message {
+  margin-top: 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.message.error {
+  background: #ececee;
+  color: #9c2b2b;
+}
+
+.message.success {
+  background: #e3ece3;
+  color: #2b8a3e;
+}
+
+.switch-link {
+  margin-top: 1.2rem;
+  font-size: 0.85rem;
+  color: #57575f;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.switch-link:hover {
+  color: #33333a;
+}
