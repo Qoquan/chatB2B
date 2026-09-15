@@ -1,16 +1,7 @@
 {
   "root": true,
-  "env": {
-    "node": true,
-    "es2022": true
-  },
+  "env": { "node": true, "es2022": true },
   "extends": ["eslint:recommended", "prettier"],
-  "parserOptions": {
-    "ecmaVersion": "latest",
-    "sourceType": "module"
-  },
-  "rules": {
-    "no-unused-vars": "warn",
-    "no-console": "off"
-  }
+  "parserOptions": { "ecmaVersion": "latest", "sourceType": "module" },
+  "rules": { "no-unused-vars": "warn", "no-console": "off" }
 }

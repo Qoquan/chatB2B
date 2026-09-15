@@ -1,19 +1,39 @@
 const prisma = require('../config/db');
 
-// Liste les conversations de l'utilisateur connecté
+// Liste les conversations de l'utilisateur connecté, avec dernier message
+// et compteur de messages non lus (pour badge/notification)
 async function listConversations(req, res) {
   const conversations = await prisma.conversation.findMany({
     where: { members: { some: { userId: req.userId } } },
     include: {
-      members: { include: { user: { select: { id: true, username: true, avatarUrl: true } } } },
+      members: {
+        include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+      },
       messages: { orderBy: { createdAt: 'desc' }, take: 1 },
     },
     orderBy: { createdAt: 'desc' },
   });
-  res.json(conversations);
+
+  const withUnreadCount = await Promise.all(
+    conversations.map(async (conv) => {
+      const myMembership = conv.members.find((m) => m.userId === req.userId);
+      const unreadCount = await prisma.message.count({
+        where: {
+          conversationId: conv.id,
+          senderId: { not: req.userId },
+          createdAt: myMembership?.lastReadAt ? { gt: myMembership.lastReadAt } : undefined,
+        },
+      });
+      return { ...conv, unreadCount };
+    })
+  );
+
+  res.json(withUnreadCount);
 }
 
-// Crée une conversation privée (1:1) ou de groupe
+// Crée une conversation privée (1:1) ou de groupe.
+// Pour une conversation 1:1, réutilise une conversation existante entre les
+// deux mêmes utilisateurs plutôt que d'en créer une nouvelle à chaque fois.
 async function createConversation(req, res) {
   const { memberIds, isGroup, name } = req.body;
 
@@ -26,38 +46,13 @@ async function createConversation(req, res) {
 
   const allMemberIds = [...new Set([...memberIds, req.userId])];
 
-  const conversation = await prisma.conversation.create({
-    data: {
-      isGroup: !!isGroup,
-      name: isGroup ? name : null,
-      members: {
-        create: allMemberIds.map((userId) => ({ userId })),
+  if (!isGroup && allMemberIds.length === 2) {
+    const existing = await prisma.conversation.findFirst({
+      where: {
+        isGroup: false,
+        AND: allMemberIds.map((userId) => ({
+          members: { some: { userId } },
+        })),
       },
-    },
-    include: { members: true },
-  });
-
-  res.status(201).json(conversation);
-}
-
-// Récupère les messages d'une conversation (avec vérification d'accès)
-async function getMessages(req, res) {
-  const { conversationId } = req.params;
-
-  const membership = await prisma.conversationMember.findUnique({
-    where: { userId_conversationId: { userId: req.userId, conversationId } },
-  });
-  if (!membership) {
-    return res.status(403).json({ error: 'Accès refusé à cette conversation' });
-  }
-
-  const messages = await prisma.message.findMany({
-    where: { conversationId },
-    include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  res.json(messages);
-}
-
-module.exports = { listConversations, createConversation, getMessages };
+      include: {
+        members: { include: { user: { select: { id: true, username: true, avatarUrl: true } } }
