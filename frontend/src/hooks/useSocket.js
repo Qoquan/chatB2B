@@ -17,5 +17,7 @@ export function useSocket(token) {
     };
   }, [token]);
 
-  return socketRef.current;
+  // On retourne la ref elle-même : à utiliser dans des handlers/effets
+  // (ex. socketRef.current.emit(...)), jamais en lisant .current pendant le rendu.
+  return socketRef;
 }
