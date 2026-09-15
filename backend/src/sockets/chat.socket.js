@@ -45,7 +45,7 @@ function registerChatHandlers(io) {
         io.to(`conversation:${conversationId}`).emit('new_message', message);
       } catch (err) {
         console.error(err);
-        socket.emit('error_message', { error: 'Erreur lors de l\'envoi du message' });
+        socket.emit('error_message', { error: "Erreur lors de l'envoi du message" });
       }
     });
 
