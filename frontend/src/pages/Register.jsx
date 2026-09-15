@@ -33,7 +33,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage({ type: 'error', text: data.error || 'Erreur lors de l\'inscription' });
+        setMessage({ type: 'error', text: data.error || "Erreur lors de l'inscription" });
         return;
       }
 
@@ -90,9 +90,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
           </button>
         </form>
 
-        {message && (
-          <div className={`message ${message.type}`}>{message.text}</div>
-        )}
+        {message && <div className={`message ${message.type}`}>{message.text}</div>}
 
         <p className="switch-link" onClick={onSwitchToLogin}>
           Déjà un compte ? Se connecter

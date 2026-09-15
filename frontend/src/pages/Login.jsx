@@ -82,9 +82,7 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
           </button>
         </form>
 
-        {message && (
-          <div className={`message ${message.type}`}>{message.text}</div>
-        )}
+        {message && <div className={`message ${message.type}`}>{message.text}</div>}
 
         <p className="switch-link" onClick={onSwitchToRegister}>
           Pas de compte ? S'inscrire
