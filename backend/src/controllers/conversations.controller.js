@@ -17,14 +17,15 @@ async function listConversations(req, res) {
   const withUnreadCount = await Promise.all(
     conversations.map(async (conv) => {
       const myMembership = conv.members.find((m) => m.userId === req.userId);
+      const lastReadAt = myMembership && myMembership.lastReadAt;
       const unreadCount = await prisma.message.count({
         where: {
           conversationId: conv.id,
           senderId: { not: req.userId },
-          createdAt: myMembership?.lastReadAt ? { gt: myMembership.lastReadAt } : undefined,
+          createdAt: lastReadAt ? { gt: lastReadAt } : undefined,
         },
       });
-      return { ...conv, unreadCount };
+      return Object.assign({}, conv, { unreadCount: unreadCount });
     })
   );
 
@@ -51,8 +52,72 @@ async function createConversation(req, res) {
       where: {
         isGroup: false,
         AND: allMemberIds.map((userId) => ({
-          members: { some: { userId } },
+          members: { some: { userId: userId } },
         })),
       },
       include: {
-        members: { include: { user: { select: { id: true, username: true, avatarUrl: true } } }
+        members: { include: { user: { select: { id: true, username: true, avatarUrl: true } } } },
+      },
+    });
+
+    if (existing) {
+      return res.status(200).json(existing);
+    }
+  }
+
+  const conversation = await prisma.conversation.create({
+    data: {
+      isGroup: !!isGroup,
+      name: isGroup ? name : null,
+      members: {
+        create: allMemberIds.map((userId) => ({ userId: userId })),
+      },
+    },
+    include: {
+      members: { include: { user: { select: { id: true, username: true, avatarUrl: true } } } },
+    },
+  });
+
+  res.status(201).json(conversation);
+}
+
+// Récupère les messages d'une conversation (avec vérification d'accès)
+async function getMessages(req, res) {
+  const { conversationId } = req.params;
+
+  const membership = await prisma.conversationMember.findUnique({
+    where: { userId_conversationId: { userId: req.userId, conversationId: conversationId } },
+  });
+  if (!membership) {
+    return res.status(403).json({ error: 'Accès refusé à cette conversation' });
+  }
+
+  const messages = await prisma.message.findMany({
+    where: { conversationId: conversationId },
+    include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  res.json(messages);
+}
+
+// Marque une conversation comme lue par l'utilisateur connecté
+async function markAsRead(req, res) {
+  const { conversationId } = req.params;
+
+  const membership = await prisma.conversationMember.findUnique({
+    where: { userId_conversationId: { userId: req.userId, conversationId: conversationId } },
+  });
+  if (!membership) {
+    return res.status(403).json({ error: 'Accès refusé à cette conversation' });
+  }
+
+  await prisma.conversationMember.update({
+    where: { userId_conversationId: { userId: req.userId, conversationId: conversationId } },
+    data: { lastReadAt: new Date() },
+  });
+
+  res.json({ success: true });
+}
+
+module.exports = { listConversations, createConversation, getMessages, markAsRead };
