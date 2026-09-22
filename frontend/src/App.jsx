@@ -1,34 +1,22 @@
 import { useState } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Chat from './pages/Chat';
+import { useAuth } from './context/AuthContext';
 
-// Point de départ minimal — à étoffer par l'équipe frontend :
-// router (liste conversations, fenêtre de chat), context d'authentification,
-// connexion Socket.io, etc.
 function App() {
-  const [user, setUser] = useState(null);
+  const { user, login } = useAuth();
   const [authView, setAuthView] = useState('login');
 
   if (!user) {
     return authView === 'login' ? (
-      <Login
-        onLoginSuccess={(data) => setUser(data.user)}
-        onSwitchToRegister={() => setAuthView('register')}
-      />
+      <Login onLoginSuccess={login} onSwitchToRegister={() => setAuthView('register')} />
     ) : (
-      <Register
-        onRegisterSuccess={(data) => setUser(data.user)}
-        onSwitchToLogin={() => setAuthView('login')}
-      />
+      <Register onRegisterSuccess={login} onSwitchToLogin={() => setAuthView('login')} />
     );
   }
 
-  return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <h1>Bienvenue {user.username} 👋</h1>
-      <p>Connecté ! Prochaine étape : liste des conversations et chat en temps réel.</p>
-    </div>
-  );
+  return <Chat />;
 }
 
 export default App;
