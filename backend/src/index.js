@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 
 const authRoutes = require('./routes/auth.routes');
 const conversationsRoutes = require('./routes/conversations.routes');
+const usersRoutes = require('./routes/users.routes');
 const registerChatHandlers = require('./sockets/chat.socket');
 
 const app = express();
@@ -26,6 +27,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/conversations', conversationsRoutes);
+app.use('/api/users', usersRoutes);
 
 registerChatHandlers(io);
 
