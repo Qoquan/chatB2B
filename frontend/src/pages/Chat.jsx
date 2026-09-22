@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import ConversationList from '../components/ConversationList';
 import ChatWindow from '../components/ChatWindow';
+import NewConversationPanel from '../components/NewConversationPanel';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import './Chat.css';
@@ -16,6 +17,8 @@ function Chat() {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [typingUsername, setTypingUsername] = useState(null);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [otherUsers, setOtherUsers] = useState([]);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
@@ -90,6 +93,30 @@ function Chat() {
     });
   }
 
+  function handleOpenNewConversation() {
+    setShowNewConversation(true);
+    fetch(`${API_URL}/api/users`, { headers: authHeaders })
+      .then((res) => res.json())
+      .then(setOtherUsers);
+  }
+
+  // Crée (ou réutilise) une conversation 1:1 avec l'utilisateur choisi
+  function handleStartConversation(otherUserId) {
+    fetch(`${API_URL}/api/conversations`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberIds: [otherUserId] }),
+    })
+      .then((res) => res.json())
+      .then((conversation) => {
+        setConversations((prev) =>
+          prev.some((c) => c.id === conversation.id) ? prev : [conversation, ...prev]
+        );
+        setShowNewConversation(false);
+        handleSelectConversation(conversation.id);
+      });
+  }
+
   const handleSend = useCallback(
     (content) => {
       if (!activeId) return;
@@ -114,8 +141,18 @@ function Chat() {
       <aside className="chat-sidebar">
         <div className="sidebar-header">
           <span>{user.username}</span>
-          <button onClick={logout}>Déconnexion</button>
+          <div>
+            <button onClick={handleOpenNewConversation}>+</button>
+            <button onClick={logout}>Déconnexion</button>
+          </div>
         </div>
+        {showNewConversation && (
+          <NewConversationPanel
+            users={otherUsers}
+            onSelectUser={handleStartConversation}
+            onClose={() => setShowNewConversation(false)}
+          />
+        )}
         <ConversationList
           conversations={conversations}
           activeId={activeId}

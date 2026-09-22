@@ -23,6 +23,46 @@
 .sidebar-header button {
   font-size: 0.75rem;
   cursor: pointer;
+  margin-left: 0.4rem;
+}
+
+.new-conversation-panel {
+  background: #1e1f22;
+  border-bottom: 1px solid #1e1f22;
+}
+
+.new-conversation-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.new-conversation-header button {
+  cursor: pointer;
+}
+
+.new-conversation-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.new-conversation-panel li {
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+
+.new-conversation-panel li:hover {
+  background: #35373c;
+}
+
+.new-conversation-panel li.empty {
+  color: #888;
+  cursor: default;
 }
 
 .conversation-list {
