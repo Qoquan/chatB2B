@@ -22,6 +22,12 @@ function registerChatHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`Utilisateur connecté: ${socket.userId}`);
 
+    // Room personnelle : permet de cibler cet utilisateur précis (toutes ses
+    // connexions/onglets) depuis n'importe où dans le code, notamment depuis
+    // les routes REST classiques (ex. création de conversation), sans avoir
+    // besoin de connaître son socket.id.
+    socket.join(`user:${socket.userId}`);
+
     // L'utilisateur rejoint les "rooms" de toutes ses conversations
     socket.on('join_conversations', async (conversationIds) => {
       if (!Array.isArray(conversationIds)) return;
