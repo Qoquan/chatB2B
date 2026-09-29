@@ -8,6 +8,7 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/auth.routes');
 const conversationsRoutes = require('./routes/conversations.routes');
+const usersRoutes = require('./routes/users.routes');
 const { notFoundHandler, errorHandler } = require('./middleware/error.middleware');
 const { corsOptionsDelegate } = require('./config/cors');
 
@@ -21,6 +22,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/conversations', conversationsRoutes);
+app.use('/api/users', usersRoutes);
 
 // 404 pour toute route inconnue (doit venir après toutes les routes)
 app.use(notFoundHandler);
