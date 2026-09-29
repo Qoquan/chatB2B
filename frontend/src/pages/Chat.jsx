@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ConversationList from '../components/ConversationList';
 import ChatWindow from '../components/ChatWindow';
 import NewConversationPanel from '../components/NewConversationPanel';
+import ToastContainer from '../components/ToastContainer';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import './Chat.css';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const TYPING_TIMEOUT_MS = 3000;
+const TOAST_DURATION_MS = 4000;
 
 function Chat() {
   const { user, token, logout } = useAuth();
@@ -19,8 +21,33 @@ function Chat() {
   const [typingUsername, setTypingUsername] = useState(null);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [otherUsers, setOtherUsers] = useState([]);
+  const [toasts, setToasts] = useState([]);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
+
+  // Toujours à jour pour les écouteurs socket posés une seule fois (cf. effet plus bas),
+  // afin de ne pas avoir à les reposer à chaque changement de conversation active.
+  const activeIdRef = useRef(activeId);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  const toastIdRef = useRef(0);
+  const pushToast = useCallback((toast) => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, ...toast }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, TOAST_DURATION_MS);
+  }, []);
+
+  // Demande la permission de notification navigateur une seule fois après connexion
+  useEffect(() => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Charge la liste des conversations au montage
   useEffect(() => {
@@ -39,21 +66,67 @@ function Chat() {
     );
   }, [conversations, socketRef]);
 
-  // Écoute les nouveaux messages / indicateur de frappe
+  // Écoute globale : nouvelles conversations + nouveaux messages (toutes conversations,
+  // pas seulement celle ouverte). Posée une seule fois par connexion socket : les handlers
+  // lisent activeIdRef plutôt que activeId pour ne jamais avoir à être reposés.
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
 
-    function handleNewMessage(message) {
-      setMessages((prev) =>
-        message.conversationId === activeId ? [...prev, message] : prev
-      );
+    function handleConversationCreated(conversation) {
       setConversations((prev) =>
-        prev.map((c) =>
-          c.id === message.conversationId ? { ...c, messages: [message] } : c
-        )
+        prev.some((c) => c.id === conversation.id)
+          ? prev
+          : [{ ...conversation, unreadCount: 0 }, ...prev]
       );
     }
+
+    function handleNewMessage(message) {
+      const isOwnMessage = message.sender.id === user.id;
+      const isActiveConversation = message.conversationId === activeIdRef.current;
+
+      if (isActiveConversation) {
+        setMessages((prev) => [...prev, message]);
+      }
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === message.conversationId
+            ? {
+                ...c,
+                messages: [message],
+                unreadCount:
+                  isActiveConversation || isOwnMessage ? c.unreadCount : (c.unreadCount || 0) + 1,
+              }
+            : c
+        )
+      );
+
+      if (!isActiveConversation && !isOwnMessage) {
+        pushToast({ title: message.sender.username, body: message.content });
+
+        if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+          new Notification(message.sender.username, {
+            body: message.content,
+            icon: message.sender.avatarUrl || undefined,
+          });
+        }
+      }
+    }
+
+    socket.on('conversation_created', handleConversationCreated);
+    socket.on('new_message', handleNewMessage);
+
+    return () => {
+      socket.off('conversation_created', handleConversationCreated);
+      socket.off('new_message', handleNewMessage);
+    };
+  }, [socketRef, user, pushToast]);
+
+  // Indicateur de frappe
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
 
     let typingTimeout;
     function handleTyping({ username }) {
@@ -62,20 +135,23 @@ function Chat() {
       typingTimeout = setTimeout(() => setTypingUsername(null), TYPING_TIMEOUT_MS);
     }
 
-    socket.on('new_message', handleNewMessage);
     socket.on('user_typing', handleTyping);
 
     return () => {
-      socket.off('new_message', handleNewMessage);
       socket.off('user_typing', handleTyping);
       clearTimeout(typingTimeout);
     };
-  }, [socketRef, activeId]);
+  }, [socketRef]);
 
   // Sélectionne une conversation : charge ses messages et la marque comme lue
   function handleSelectConversation(conversationId) {
     setActiveId(conversationId);
     setTypingUsername(null);
+
+    // Remise à zéro optimiste du compteur non-lus, en plus de l'appel API vers /read
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
+    );
 
     fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
       headers: authHeaders,
@@ -86,10 +162,6 @@ function Chat() {
     fetch(`${API_URL}/api/conversations/${conversationId}/read`, {
       method: 'POST',
       headers: authHeaders,
-    }).then(() => {
-      setConversations((prev) =>
-        prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
-      );
     });
   }
 
@@ -138,6 +210,7 @@ function Chat() {
 
   return (
     <div className="chat-page">
+      <ToastContainer toasts={toasts} />
       <aside className="chat-sidebar">
         <div className="sidebar-header">
           <span>{user.username}</span>
