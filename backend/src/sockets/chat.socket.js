@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
+const { sanitizeText } = require('../utils/validators');
 
 // Middleware d'authentification pour les connexions Socket.io
 function socketAuthMiddleware(socket, next) {
@@ -23,12 +24,24 @@ function registerChatHandlers(io) {
 
     // L'utilisateur rejoint les "rooms" de toutes ses conversations
     socket.on('join_conversations', async (conversationIds) => {
-      conversationIds.forEach((id) => socket.join(`conversation:${id}`));
+      if (!Array.isArray(conversationIds)) return;
+      conversationIds
+        .filter((id) => typeof id === 'string' && id.trim().length > 0)
+        .forEach((id) => socket.join(`conversation:${id}`));
     });
 
     // Envoi d'un message
     socket.on('send_message', async ({ conversationId, content }) => {
       try {
+        if (typeof conversationId !== 'string' || conversationId.trim().length === 0) {
+          return socket.emit('error_message', { error: 'Conversation invalide' });
+        }
+
+        const cleanContent = sanitizeText(content);
+        if (!cleanContent) {
+          return socket.emit('error_message', { error: 'Le message ne peut pas être vide' });
+        }
+
         const membership = await prisma.conversationMember.findUnique({
           where: { userId_conversationId: { userId: socket.userId, conversationId } },
         });
@@ -37,7 +50,7 @@ function registerChatHandlers(io) {
         }
 
         const message = await prisma.message.create({
-          data: { content, conversationId, senderId: socket.userId },
+          data: { content: cleanContent, conversationId, senderId: socket.userId },
           include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
         });
 
