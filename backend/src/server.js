@@ -25,6 +25,12 @@ function createServer() {
     },
   });
 
+  // Rend l'instance io accessible depuis les routes REST (req.app.get('io')),
+  // pour pouvoir notifier des utilisateurs en temps réel depuis un
+  // controller classique (ex. prévenir les membres invités quand une
+  // nouvelle conversation est créée).
+  app.set('io', io);
+
   registerChatHandlers(io);
 
   return { app, server, io };

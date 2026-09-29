@@ -90,8 +90,25 @@ const createConversation = asyncHandler(async (req, res) => {
     },
   });
 
+  notifyMembersOfNewConversation(req, conversation, allMemberIds);
+
   res.status(201).json(conversation);
 });
+
+// Prévient en temps réel tous les membres d'une conversation qui vient
+// d'être créée : leurs connexions Socket.io (room "user:<id>") rejoignent
+// automatiquement la room de cette conversation, et reçoivent l'évènement
+// conversation_created pour l'ajouter immédiatement à leur liste, sans
+// recharger la page.
+function notifyMembersOfNewConversation(req, conversation, memberIds) {
+  const io = req.app.get('io');
+  if (!io) return; // pas d'instance Socket.io disponible (ex. tests HTTP purs)
+
+  memberIds.forEach((userId) => {
+    io.in(`user:${userId}`).socketsJoin(`conversation:${conversation.id}`);
+  });
+  io.to(`conversation:${conversation.id}`).emit('conversation_created', conversation);
+}
 
 // Récupère les messages d'une conversation (avec vérification d'accès)
 const getMessages = asyncHandler(async (req, res) => {
