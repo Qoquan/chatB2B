@@ -10,6 +10,7 @@ import './Chat.css';
 const API_URL = import.meta.env.VITE_API_URL;
 const TYPING_TIMEOUT_MS = 3000;
 const TOAST_DURATION_MS = 4000;
+const BASE_TITLE = 'ChatB2B';
 
 function Chat() {
   const { user, token, logout } = useAuth();
@@ -48,6 +49,19 @@ function Chat() {
       Notification.requestPermission();
     }
   }, []);
+
+  // Notification dans le titre de l'onglet : affiche "(n) ChatB2B" dès qu'il y a des
+  // messages non lus, visible même si l'onglet est en arrière-plan ou le navigateur
+  // minimisé (contrairement à un toast ou une Notification navigateur classique).
+  const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  useEffect(() => {
+    document.title = totalUnread > 0 ? `(${totalUnread}) ${BASE_TITLE}` : BASE_TITLE;
+
+    // Remet le titre par défaut si le composant est démonté (ex. déconnexion)
+    return () => {
+      document.title = BASE_TITLE;
+    };
+  }, [totalUnread]);
 
   // Charge la liste des conversations au montage
   useEffect(() => {
