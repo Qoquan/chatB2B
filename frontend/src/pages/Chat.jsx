@@ -27,6 +27,7 @@ function Chat() {
   const [toasts, setToasts] = useState([]);
   const [showProfile, setShowProfile] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
@@ -190,6 +191,7 @@ function Chat() {
     setTypingUsername(null);
     setShowProfile(false);
     setShowGroupSettings(false);
+    setMenuOpen(false);
 
     // Remise à zéro optimiste du compteur non-lus, en plus de l'appel API vers /read
     setConversations((prev) =>
@@ -268,11 +270,17 @@ function Chat() {
   return (
     <div className="chat-page">
       <ToastContainer toasts={toasts} />
-      <aside className="chat-sidebar">
+      <aside className={`chat-sidebar${menuOpen ? ' open' : ''}`}>
         <div className="sidebar-header">
           <span>
             {user.username}
-            <button title="Mon profil" onClick={() => setShowProfile(true)}>
+            <button
+              title="Mon profil"
+              onClick={() => {
+                setShowProfile(true);
+                setMenuOpen(false);
+              }}
+            >
               ⚙️
             </button>
           </span>
@@ -296,31 +304,47 @@ function Chat() {
           onSelect={handleSelectConversation}
         />
       </aside>
+      {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)} />}
 
-      {showProfile ? (
-        <ProfilePage onClose={() => setShowProfile(false)} />
-      ) : showGroupSettings && activeConversation?.isGroup ? (
-        <GroupSettings
-          conversation={activeConversation}
-          currentUserId={user.id}
-          token={token}
-          onClose={() => setShowGroupSettings(false)}
-          onDeleted={removeConversation}
-        />
-      ) : activeId ? (
-        <ChatWindow
-          title={activeTitle}
-          avatarUrl={activeConversation?.avatarUrl}
-          onOpenSettings={activeConversation?.isGroup ? () => setShowGroupSettings(true) : undefined}
-          messages={messages}
-          currentUserId={user.id}
-          typingUsername={typingUsername}
-          onSend={handleSend}
-          onTyping={handleTyping}
-        />
-      ) : (
-        <div className="chat-window chat-empty">Sélectionne une conversation à gauche</div>
-      )}
+      <main className="chat-main">
+        <div className="mobile-topbar">
+          <button
+            className="menu-toggle"
+            aria-label="Ouvrir le menu"
+            onClick={() => setMenuOpen(true)}
+          >
+            ☰
+          </button>
+          <span>ChatB2B</span>
+        </div>
+
+        {showProfile ? (
+          <ProfilePage onClose={() => setShowProfile(false)} />
+        ) : showGroupSettings && activeConversation?.isGroup ? (
+          <GroupSettings
+            conversation={activeConversation}
+            currentUserId={user.id}
+            token={token}
+            onClose={() => setShowGroupSettings(false)}
+            onDeleted={removeConversation}
+          />
+        ) : activeId ? (
+          <ChatWindow
+            title={activeTitle}
+            avatarUrl={activeConversation?.avatarUrl}
+            onOpenSettings={
+              activeConversation?.isGroup ? () => setShowGroupSettings(true) : undefined
+            }
+            messages={messages}
+            currentUserId={user.id}
+            typingUsername={typingUsername}
+            onSend={handleSend}
+            onTyping={handleTyping}
+          />
+        ) : (
+          <div className="chat-window chat-empty">Sélectionne une conversation dans le menu</div>
+        )}
+      </main>
     </div>
   );
 }
