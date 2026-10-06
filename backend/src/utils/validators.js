@@ -42,4 +42,17 @@ function sanitizeText(value, { maxLength = 5000 } = {}) {
   return trimmed;
 }
 
-module.exports = { validateRegisterInput, validateLoginInput, sanitizeText, EMAIL_REGEX };
+// URL d'image (avatar utilisateur ou photo de groupe) : http(s) uniquement
+function isValidAvatarUrl(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.length <= 500 && /^https?:\/\//i.test(trimmed);
+}
+
+module.exports = {
+  validateRegisterInput,
+  validateLoginInput,
+  sanitizeText,
+  isValidAvatarUrl,
+  EMAIL_REGEX,
+};

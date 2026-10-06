@@ -3,6 +3,8 @@ import ConversationList from '../components/ConversationList';
 import ChatWindow from '../components/ChatWindow';
 import NewConversationPanel from '../components/NewConversationPanel';
 import ToastContainer from '../components/ToastContainer';
+import ProfilePage from '../components/ProfilePage';
+import GroupSettings from '../components/GroupSettings';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import './Chat.css';
@@ -23,6 +25,9 @@ function Chat() {
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [otherUsers, setOtherUsers] = useState([]);
   const [toasts, setToasts] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
@@ -32,6 +37,15 @@ function Chat() {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+
+  const removeConversation = useCallback((conversationId) => {
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    if (activeIdRef.current === conversationId) {
+      setActiveId(null);
+      setMessages([]);
+      setShowGroupSettings(false);
+    }
+  }, []);
 
   const toastIdRef = useRef(0);
   const pushToast = useCallback((toast) => {
@@ -128,14 +142,28 @@ function Chat() {
       }
     }
 
+    function handleConversationUpdated(conversation) {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversation.id ? { ...c, ...conversation } : c))
+      );
+    }
+
+    function handleConversationDeleted({ id }) {
+      removeConversation(id);
+    }
+
     socket.on('conversation_created', handleConversationCreated);
+    socket.on('conversation_updated', handleConversationUpdated);
+    socket.on('conversation_deleted', handleConversationDeleted);
     socket.on('new_message', handleNewMessage);
 
     return () => {
       socket.off('conversation_created', handleConversationCreated);
+      socket.off('conversation_updated', handleConversationUpdated);
+      socket.off('conversation_deleted', handleConversationDeleted);
       socket.off('new_message', handleNewMessage);
     };
-  }, [socketRef, user, pushToast]);
+  }, [socketRef, user, pushToast, removeConversation]);
 
   // Indicateur de frappe
   useEffect(() => {
@@ -161,6 +189,9 @@ function Chat() {
   function handleSelectConversation(conversationId) {
     setActiveId(conversationId);
     setTypingUsername(null);
+    setShowProfile(false);
+    setShowGroupSettings(false);
+    setMenuOpen(false);
 
     // Remise à zéro optimiste du compteur non-lus, en plus de l'appel API vers /read
     setConversations((prev) =>
@@ -186,6 +217,14 @@ function Chat() {
       .then(setOtherUsers);
   }
 
+  function openConversation(conversation) {
+    setConversations((prev) =>
+      prev.some((c) => c.id === conversation.id) ? prev : [conversation, ...prev]
+    );
+    setShowNewConversation(false);
+    handleSelectConversation(conversation.id);
+  }
+
   // Crée (ou réutilise) une conversation 1:1 avec l'utilisateur choisi
   function handleStartConversation(otherUserId) {
     fetch(`${API_URL}/api/conversations`, {
@@ -194,13 +233,19 @@ function Chat() {
       body: JSON.stringify({ memberIds: [otherUserId] }),
     })
       .then((res) => res.json())
-      .then((conversation) => {
-        setConversations((prev) =>
-          prev.some((c) => c.id === conversation.id) ? prev : [conversation, ...prev]
-        );
-        setShowNewConversation(false);
-        handleSelectConversation(conversation.id);
-      });
+      .then(openConversation);
+  }
+
+  async function handleCreateGroup({ name, avatarUrl, memberIds }) {
+    const res = await fetch(`${API_URL}/api/conversations`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberIds, isGroup: true, name, avatarUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error };
+    openConversation(data);
+    return {};
   }
 
   const handleSend = useCallback(
@@ -225,9 +270,20 @@ function Chat() {
   return (
     <div className="chat-page">
       <ToastContainer toasts={toasts} />
-      <aside className="chat-sidebar">
+      <aside className={`chat-sidebar${menuOpen ? ' open' : ''}`}>
         <div className="sidebar-header">
-          <span>{user.username}</span>
+          <span>
+            {user.username}
+            <button
+              title="Mon profil"
+              onClick={() => {
+                setShowProfile(true);
+                setMenuOpen(false);
+              }}
+            >
+              ⚙️
+            </button>
+          </span>
           <div>
             <button onClick={handleOpenNewConversation}>+</button>
             <button onClick={logout}>Déconnexion</button>
@@ -237,6 +293,7 @@ function Chat() {
           <NewConversationPanel
             users={otherUsers}
             onSelectUser={handleStartConversation}
+            onCreateGroup={handleCreateGroup}
             onClose={() => setShowNewConversation(false)}
           />
         )}
@@ -247,19 +304,47 @@ function Chat() {
           onSelect={handleSelectConversation}
         />
       </aside>
+      {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)} />}
 
-      {activeId ? (
-        <ChatWindow
-          title={activeTitle}
-          messages={messages}
-          currentUserId={user.id}
-          typingUsername={typingUsername}
-          onSend={handleSend}
-          onTyping={handleTyping}
-        />
-      ) : (
-        <div className="chat-window chat-empty">Sélectionne une conversation à gauche</div>
-      )}
+      <main className="chat-main">
+        <div className="mobile-topbar">
+          <button
+            className="menu-toggle"
+            aria-label="Ouvrir le menu"
+            onClick={() => setMenuOpen(true)}
+          >
+            ☰
+          </button>
+          <span>ChatB2B</span>
+        </div>
+
+        {showProfile ? (
+          <ProfilePage onClose={() => setShowProfile(false)} />
+        ) : showGroupSettings && activeConversation?.isGroup ? (
+          <GroupSettings
+            conversation={activeConversation}
+            currentUserId={user.id}
+            token={token}
+            onClose={() => setShowGroupSettings(false)}
+            onDeleted={removeConversation}
+          />
+        ) : activeId ? (
+          <ChatWindow
+            title={activeTitle}
+            avatarUrl={activeConversation?.avatarUrl}
+            onOpenSettings={
+              activeConversation?.isGroup ? () => setShowGroupSettings(true) : undefined
+            }
+            messages={messages}
+            currentUserId={user.id}
+            typingUsername={typingUsername}
+            onSend={handleSend}
+            onTyping={handleTyping}
+          />
+        ) : (
+          <div className="chat-window chat-empty">Sélectionne une conversation dans le menu</div>
+        )}
+      </main>
     </div>
   );
 }
