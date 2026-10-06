@@ -1,6 +1,10 @@
 const prisma = require('../config/db');
 const { asyncHandler } = require('../middleware/error.middleware');
 
+// Métadonnées d'une pièce jointe (jamais son contenu binaire, qui se télécharge
+// à part via GET /:conversationId/attachments/:attachmentId)
+const ATTACHMENT_SELECT = { select: { id: true, fileName: true, mimeType: true, size: true } };
+
 // Liste les conversations de l'utilisateur connecté, avec dernier message
 // et compteur de messages non lus (pour badge/notification)
 const listConversations = asyncHandler(async (req, res) => {
@@ -10,7 +14,11 @@ const listConversations = asyncHandler(async (req, res) => {
       members: {
         include: { user: { select: { id: true, username: true, avatarUrl: true } } },
       },
-      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      messages: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        include: { attachment: ATTACHMENT_SELECT },
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -123,7 +131,10 @@ const getMessages = asyncHandler(async (req, res) => {
 
   const messages = await prisma.message.findMany({
     where: { conversationId: conversationId },
-    include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
+    include: {
+      sender: { select: { id: true, username: true, avatarUrl: true } },
+      attachment: ATTACHMENT_SELECT,
+    },
     orderBy: { createdAt: 'asc' },
   });
 
