@@ -189,6 +189,14 @@ function Chat() {
       .then(setOtherUsers);
   }
 
+  function openConversation(conversation) {
+    setConversations((prev) =>
+      prev.some((c) => c.id === conversation.id) ? prev : [conversation, ...prev]
+    );
+    setShowNewConversation(false);
+    handleSelectConversation(conversation.id);
+  }
+
   // Crée (ou réutilise) une conversation 1:1 avec l'utilisateur choisi
   function handleStartConversation(otherUserId) {
     fetch(`${API_URL}/api/conversations`, {
@@ -197,13 +205,19 @@ function Chat() {
       body: JSON.stringify({ memberIds: [otherUserId] }),
     })
       .then((res) => res.json())
-      .then((conversation) => {
-        setConversations((prev) =>
-          prev.some((c) => c.id === conversation.id) ? prev : [conversation, ...prev]
-        );
-        setShowNewConversation(false);
-        handleSelectConversation(conversation.id);
-      });
+      .then(openConversation);
+  }
+
+  async function handleCreateGroup({ name, avatarUrl, memberIds }) {
+    const res = await fetch(`${API_URL}/api/conversations`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberIds, isGroup: true, name, avatarUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error };
+    openConversation(data);
+    return {};
   }
 
   const handleSend = useCallback(
@@ -245,6 +259,7 @@ function Chat() {
           <NewConversationPanel
             users={otherUsers}
             onSelectUser={handleStartConversation}
+            onCreateGroup={handleCreateGroup}
             onClose={() => setShowNewConversation(false)}
           />
         )}
