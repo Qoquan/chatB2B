@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
 
-function ChatWindow({ title, messages, currentUserId, typingUsername, onSend, onTyping }) {
+function ChatWindow({
+  title,
+  avatarUrl,
+  messages,
+  currentUserId,
+  typingUsername,
+  onSend,
+  onTyping,
+  onOpenSettings,
+}) {
   const [draft, setDraft] = useState('');
   const bottomRef = useRef(null);
 
@@ -18,7 +27,15 @@ function ChatWindow({ title, messages, currentUserId, typingUsername, onSend, on
 
   return (
     <div className="chat-window">
-      <div className="chat-header">{title}</div>
+      <div className="chat-header">
+        {avatarUrl && <img className="chat-header-avatar" src={avatarUrl} alt="" />}
+        <span>{title}</span>
+        {onOpenSettings && (
+          <button className="chat-header-settings" title="Paramètres du groupe" onClick={onOpenSettings}>
+            ⚙️
+          </button>
+        )}
+      </div>
 
       <div className="chat-messages">
         {messages.map((msg) => (

@@ -4,6 +4,7 @@ import ChatWindow from '../components/ChatWindow';
 import NewConversationPanel from '../components/NewConversationPanel';
 import ToastContainer from '../components/ToastContainer';
 import ProfilePage from '../components/ProfilePage';
+import GroupSettings from '../components/GroupSettings';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import './Chat.css';
@@ -25,6 +26,7 @@ function Chat() {
   const [otherUsers, setOtherUsers] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [showProfile, setShowProfile] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
@@ -34,6 +36,15 @@ function Chat() {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
+
+  const removeConversation = useCallback((conversationId) => {
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    if (activeIdRef.current === conversationId) {
+      setActiveId(null);
+      setMessages([]);
+      setShowGroupSettings(false);
+    }
+  }, []);
 
   const toastIdRef = useRef(0);
   const pushToast = useCallback((toast) => {
@@ -130,14 +141,28 @@ function Chat() {
       }
     }
 
+    function handleConversationUpdated(conversation) {
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversation.id ? { ...c, ...conversation } : c))
+      );
+    }
+
+    function handleConversationDeleted({ id }) {
+      removeConversation(id);
+    }
+
     socket.on('conversation_created', handleConversationCreated);
+    socket.on('conversation_updated', handleConversationUpdated);
+    socket.on('conversation_deleted', handleConversationDeleted);
     socket.on('new_message', handleNewMessage);
 
     return () => {
       socket.off('conversation_created', handleConversationCreated);
+      socket.off('conversation_updated', handleConversationUpdated);
+      socket.off('conversation_deleted', handleConversationDeleted);
       socket.off('new_message', handleNewMessage);
     };
-  }, [socketRef, user, pushToast]);
+  }, [socketRef, user, pushToast, removeConversation]);
 
   // Indicateur de frappe
   useEffect(() => {
@@ -164,6 +189,7 @@ function Chat() {
     setActiveId(conversationId);
     setTypingUsername(null);
     setShowProfile(false);
+    setShowGroupSettings(false);
 
     // Remise à zéro optimiste du compteur non-lus, en plus de l'appel API vers /read
     setConversations((prev) =>
@@ -273,9 +299,19 @@ function Chat() {
 
       {showProfile ? (
         <ProfilePage onClose={() => setShowProfile(false)} />
+      ) : showGroupSettings && activeConversation?.isGroup ? (
+        <GroupSettings
+          conversation={activeConversation}
+          currentUserId={user.id}
+          token={token}
+          onClose={() => setShowGroupSettings(false)}
+          onDeleted={removeConversation}
+        />
       ) : activeId ? (
         <ChatWindow
           title={activeTitle}
+          avatarUrl={activeConversation?.avatarUrl}
+          onOpenSettings={activeConversation?.isGroup ? () => setShowGroupSettings(true) : undefined}
           messages={messages}
           currentUserId={user.id}
           typingUsername={typingUsername}
