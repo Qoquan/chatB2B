@@ -33,6 +33,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chatb2b_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/chatb2b_test
       JWT_SECRET: ci_test_secret_do_not_use_in_prod
       JWT_EXPIRES_IN: 1h
 

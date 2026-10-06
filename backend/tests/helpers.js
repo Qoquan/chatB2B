@@ -1,8 +1,8 @@
 // Utilitaires partagés par les tests d'intégration : génère des identités
 // de test uniques (évite les collisions entre runs / entre fichiers de
 // test) et nettoie proprement les données créées après chaque suite, dans
-// le bon ordre (Message -> ConversationMember -> Conversation -> User) car
-// le schéma Prisma n'a pas de suppression en cascade.
+// le bon ordre (Attachment -> Message -> ConversationMember -> Conversation
+// -> User) car le schéma Prisma n'a pas de suppression en cascade.
 
 import prisma from '../src/config/db.js';
 
@@ -20,6 +20,9 @@ function uniqueUser(label) {
 
 async function cleanupTestData({ userIds = [], conversationIds = [] } = {}) {
   if (conversationIds.length > 0) {
+    await prisma.attachment.deleteMany({
+      where: { message: { conversationId: { in: conversationIds } } },
+    });
     await prisma.message.deleteMany({ where: { conversationId: { in: conversationIds } } });
     await prisma.conversationMember.deleteMany({
       where: { conversationId: { in: conversationIds } },
@@ -29,6 +32,7 @@ async function cleanupTestData({ userIds = [], conversationIds = [] } = {}) {
   if (userIds.length > 0) {
     // Sécurité supplémentaire : au cas où un message/membership existerait
     // hors des conversations déjà nettoyées ci-dessus.
+    await prisma.attachment.deleteMany({ where: { message: { senderId: { in: userIds } } } });
     await prisma.message.deleteMany({ where: { senderId: { in: userIds } } });
     await prisma.conversationMember.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
