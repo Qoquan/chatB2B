@@ -3,6 +3,7 @@ import ConversationList from '../components/ConversationList';
 import ChatWindow from '../components/ChatWindow';
 import NewConversationPanel from '../components/NewConversationPanel';
 import ToastContainer from '../components/ToastContainer';
+import ProfilePage from '../components/ProfilePage';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import './Chat.css';
@@ -23,6 +24,7 @@ function Chat() {
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [otherUsers, setOtherUsers] = useState([]);
   const [toasts, setToasts] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
@@ -161,6 +163,7 @@ function Chat() {
   function handleSelectConversation(conversationId) {
     setActiveId(conversationId);
     setTypingUsername(null);
+    setShowProfile(false);
 
     // Remise à zéro optimiste du compteur non-lus, en plus de l'appel API vers /read
     setConversations((prev) =>
@@ -227,7 +230,12 @@ function Chat() {
       <ToastContainer toasts={toasts} />
       <aside className="chat-sidebar">
         <div className="sidebar-header">
-          <span>{user.username}</span>
+          <span>
+            {user.username}
+            <button title="Mon profil" onClick={() => setShowProfile(true)}>
+              ⚙️
+            </button>
+          </span>
           <div>
             <button onClick={handleOpenNewConversation}>+</button>
             <button onClick={logout}>Déconnexion</button>
@@ -248,7 +256,9 @@ function Chat() {
         />
       </aside>
 
-      {activeId ? (
+      {showProfile ? (
+        <ProfilePage onClose={() => setShowProfile(false)} />
+      ) : activeId ? (
         <ChatWindow
           title={activeTitle}
           messages={messages}
