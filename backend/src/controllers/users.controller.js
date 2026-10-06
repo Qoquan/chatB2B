@@ -94,4 +94,50 @@ const changePassword = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { listUsers, getMe, updateMe, changePassword };
+// Suppression définitive du compte (droit à l'effacement, RGPD art. 17) :
+// messages, appartenances et compte sont supprimés. Les conversations qui
+// n'ont plus aucun membre sont supprimées avec leurs messages.
+const deleteMe = asyncHandler(async (req, res) => {
+  const { currentPassword } = req.body;
+
+  if (typeof currentPassword !== 'string' || !currentPassword) {
+    return res.status(400).json({ error: 'Mot de passe requis pour supprimer le compte' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur introuvable' });
+  }
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) {
+    return res.status(403).json({ error: 'Mot de passe incorrect' });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const memberships = await tx.conversationMember.findMany({
+      where: { userId: req.userId },
+      select: { conversationId: true },
+    });
+    const conversationIds = memberships.map((m) => m.conversationId);
+
+    await tx.message.deleteMany({ where: { senderId: req.userId } });
+    await tx.conversationMember.deleteMany({ where: { userId: req.userId } });
+
+    const emptyConversations = await tx.conversation.findMany({
+      where: { id: { in: conversationIds }, members: { none: {} } },
+      select: { id: true },
+    });
+    const emptyIds = emptyConversations.map((c) => c.id);
+    await tx.message.deleteMany({ where: { conversationId: { in: emptyIds } } });
+    await tx.conversation.deleteMany({ where: { id: { in: emptyIds } } });
+
+    await tx.user.delete({ where: { id: req.userId } });
+  });
+
+  const io = req.app.get('io');
+  if (io) io.in(`user:${req.userId}`).disconnectSockets(true);
+
+  res.json({ success: true });
+});
+
+module.exports = { listUsers, getMe, updateMe, changePassword, deleteMe };
