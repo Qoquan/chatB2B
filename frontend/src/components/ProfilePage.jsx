@@ -4,9 +4,11 @@ import { useAuth } from '../context/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL;
 
 function ProfilePage({ onClose }) {
-  const { token, updateUser } = useAuth();
+  const { token, updateUser, logout } = useAuth();
 
   const [email, setEmail] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteMessage, setDeleteMessage] = useState(null);
   const [username, setUsername] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileMessage, setProfileMessage] = useState(null);
@@ -73,6 +75,21 @@ function ProfilePage({ onClose }) {
     setPasswordMessage({ type: 'success', text: 'Mot de passe modifié' });
   }
 
+  async function handleDeleteAccount(e) {
+    e.preventDefault();
+    if (!window.confirm('Supprimer définitivement votre compte et vos messages ?')) return;
+
+    setDeleteMessage(null);
+    const { ok, data } = await request('DELETE', '/api/users/me', {
+      currentPassword: deletePassword,
+    });
+    if (!ok) {
+      setDeleteMessage({ type: 'error', text: data.error });
+      return;
+    }
+    logout();
+  }
+
   return (
     <div className="chat-window profile-page">
       <div className="profile-header">
@@ -135,6 +152,28 @@ function ProfilePage({ onClose }) {
         <button type="submit">Changer le mot de passe</button>
         {passwordMessage && (
           <div className={`profile-message ${passwordMessage.type}`}>{passwordMessage.text}</div>
+        )}
+      </form>
+
+      <form className="profile-form" onSubmit={handleDeleteAccount}>
+        <h3>Supprimer mon compte</h3>
+        <p className="danger-text">
+          Action irréversible : vos messages et votre compte seront supprimés définitivement.
+        </p>
+        <label>
+          Mot de passe (confirmation)
+          <input
+            type="password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            required
+          />
+        </label>
+        <button type="submit" className="danger-button">
+          Supprimer définitivement mon compte
+        </button>
+        {deleteMessage && (
+          <div className={`profile-message ${deleteMessage.type}`}>{deleteMessage.text}</div>
         )}
       </form>
     </div>
