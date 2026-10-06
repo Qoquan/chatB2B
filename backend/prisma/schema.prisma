@@ -3,8 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Connexion "pooled" (via PgBouncer) utilisée par l'application au quotidien.
+  url       = env("DATABASE_URL")
+  // Connexion directe, utilisée uniquement par Prisma pour les migrations
+  // (recommandé avec Neon : les migrations ne passent pas par le pooler).
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -53,4 +57,21 @@ model Message {
   sender         User         @relation(fields: [senderId], references: [id])
   senderId       String
   createdAt      DateTime     @default(now())
+
+  attachment Attachment? // pièce jointe optionnelle (une par message)
+}
+
+// Fichier envoyé dans une conversation. Le contenu est stocké directement en
+// base (colonne binaire) car le disque de Render est effacé à chaque
+// redéploiement ; l'accès passe toujours par une route protégée (membres
+// de la conversation uniquement).
+model Attachment {
+  id        String   @id @default(uuid())
+  fileName  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String   @unique
+  createdAt DateTime @default(now())
 }
