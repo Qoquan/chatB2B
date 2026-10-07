@@ -5,6 +5,7 @@ import NewConversationPanel from '../components/NewConversationPanel';
 import ToastContainer from '../components/ToastContainer';
 import ProfilePage from '../components/ProfilePage';
 import GroupSettings from '../components/GroupSettings';
+import { getUserName, isDeletedUser } from '../utils/userName';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import './Chat.css';
@@ -264,8 +265,13 @@ function Chat() {
   const activeConversation = conversations.find((c) => c.id === activeId);
   const activeTitle =
     activeConversation?.name ||
-    activeConversation?.members?.find((m) => m.user.id !== user.id)?.user.username ||
+    getUserName(activeConversation?.members?.find((m) => m.user.id !== user.id)?.user) ||
     'Sélectionne une conversation';
+  // Discussion privée dont l'autre personne a supprimé son compte : lecture seule
+  const isReadOnly =
+    Boolean(activeConversation) &&
+    !activeConversation.isGroup &&
+    activeConversation.members.some((m) => m.user.id !== user.id && isDeletedUser(m.user));
 
   return (
     <div className="chat-page">
@@ -336,6 +342,7 @@ function Chat() {
               activeConversation?.isGroup ? () => setShowGroupSettings(true) : undefined
             }
             messages={messages}
+            readOnly={isReadOnly}
             currentUserId={user.id}
             typingUsername={typingUsername}
             onSend={handleSend}

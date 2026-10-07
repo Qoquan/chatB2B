@@ -1,0 +1,20 @@
+/* Badge « Utilisateur supprimé » et bandeau de conversation en lecture seule */
+.deleted-user-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.chat-readonly-notice {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #4b5563;
+  font-size: 0.9rem;
+  text-align: center;
+}

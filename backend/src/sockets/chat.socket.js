@@ -1,18 +1,30 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
 const { sanitizeText } = require('../utils/validators');
+const { DELETED_PEER_ERROR, isReadOnlyDirectConversation } = require('../utils/deletedUsers');
 
 // Middleware d'authentification pour les connexions Socket.io
-function socketAuthMiddleware(socket, next) {
+async function socketAuthMiddleware(socket, next) {
   const token = socket.handshake.auth?.token;
   if (!token) return next(new Error('Token manquant'));
 
+  let payload;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return next(new Error('Token invalide'));
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { deletedAt: true },
+    });
+    if (!user || user.deletedAt) return next(new Error('Compte introuvable ou supprimé'));
     socket.userId = payload.userId;
     next();
   } catch (err) {
-    next(new Error('Token invalide'));
+    next(new Error('Erreur interne'));
   }
 }
 
@@ -54,10 +66,15 @@ function registerChatHandlers(io) {
         if (!membership) {
           return socket.emit('error_message', { error: 'Accès refusé à cette conversation' });
         }
+        if (await isReadOnlyDirectConversation(conversationId)) {
+          return socket.emit('error_message', { error: DELETED_PEER_ERROR });
+        }
 
         const message = await prisma.message.create({
           data: { content: cleanContent, conversationId, senderId: socket.userId },
-          include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
+          include: {
+            sender: { select: { id: true, username: true, avatarUrl: true, deletedAt: true } },
+          },
         });
 
         // Diffuse le message à tous les membres connectés de la conversation

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const prisma = require('../config/db');
 const { asyncHandler } = require('../middleware/error.middleware');
@@ -7,7 +8,7 @@ const PROFILE_FIELDS = { id: true, email: true, username: true, avatarUrl: true 
 // Liste les autres utilisateurs (pour démarrer une nouvelle conversation)
 async function listUsers(req, res) {
   const users = await prisma.user.findMany({
-    where: { id: { not: req.userId } },
+    where: { id: { not: req.userId }, deletedAt: null },
     select: { id: true, username: true, avatarUrl: true },
     orderBy: { username: 'asc' },
   });
@@ -113,6 +114,10 @@ const deleteMe = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Mot de passe incorrect' });
   }
 
+  // Anonymisation plutôt que suppression : les messages et les fichiers envoyés
+  // restent lisibles par les autres membres, mais toutes les données
+  // personnelles du compte (e-mail, pseudo, photo, mot de passe) sont effacées.
+  // L'auteur apparaît alors comme « Utilisateur supprimé » (champ deletedAt).
   await prisma.$transaction(async (tx) => {
     const memberships = await tx.conversationMember.findMany({
       where: { userId: req.userId },
@@ -120,18 +125,51 @@ const deleteMe = asyncHandler(async (req, res) => {
     });
     const conversationIds = memberships.map((m) => m.conversationId);
 
-    await tx.message.deleteMany({ where: { senderId: req.userId } });
-    await tx.conversationMember.deleteMany({ where: { userId: req.userId } });
+    await tx.user.update({
+      where: { id: req.userId },
+      data: {
+        email: `deleted_${req.userId}@deleted.invalid`,
+        username: `deleted_${req.userId.replace(/-/g, '').slice(0, 8)}`,
+        // Valeur aléatoire qui n'est pas un hash valide : aucune connexion possible.
+        passwordHash: crypto.randomBytes(32).toString('hex'),
+        avatarUrl: null,
+        deletedAt: new Date(),
+      },
+    });
 
-    const emptyConversations = await tx.conversation.findMany({
-      where: { id: { in: conversationIds }, members: { none: {} } },
+    // Une conversation où il ne reste plus aucun compte actif n'intéresse plus
+    // personne : on l'efface réellement, avec ses messages et ses fichiers.
+    const abandoned = await tx.conversation.findMany({
+      where: { id: { in: conversationIds }, members: { none: { user: { deletedAt: null } } } },
       select: { id: true },
     });
-    const emptyIds = emptyConversations.map((c) => c.id);
-    await tx.message.deleteMany({ where: { conversationId: { in: emptyIds } } });
-    await tx.conversation.deleteMany({ where: { id: { in: emptyIds } } });
+    const abandonedIds = abandoned.map((c) => c.id);
+    await tx.attachment.deleteMany({
+      where: { message: { conversationId: { in: abandonedIds } } },
+    });
+    await tx.message.deleteMany({ where: { conversationId: { in: abandonedIds } } });
+    await tx.conversationMember.deleteMany({ where: { conversationId: { in: abandonedIds } } });
+    await tx.conversation.deleteMany({ where: { id: { in: abandonedIds } } });
 
-    await tx.user.delete({ where: { id: req.userId } });
+    // Un groupe créé par ce compte passe au plus ancien membre encore actif,
+    // pour qu'il reste administrable (renommer, supprimer).
+    const ownedGroups = await tx.conversation.findMany({
+      where: { createdById: req.userId, id: { notIn: abandonedIds } },
+      select: { id: true },
+    });
+    for (const group of ownedGroups) {
+      const heir = await tx.conversationMember.findFirst({
+        where: { conversationId: group.id, user: { deletedAt: null } },
+        orderBy: { joinedAt: 'asc' },
+        select: { userId: true },
+      });
+      if (heir) {
+        await tx.conversation.update({
+          where: { id: group.id },
+          data: { createdById: heir.userId },
+        });
+      }
+    }
   });
 
   const io = req.app.get('io');

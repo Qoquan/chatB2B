@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
+import './DeletedUser.css';
 
 function ChatWindow({
   title,
@@ -10,6 +11,7 @@ function ChatWindow({
   onSend,
   onTyping,
   onOpenSettings,
+  readOnly,
 }) {
   const [draft, setDraft] = useState('');
   const bottomRef = useRef(null);
@@ -31,7 +33,11 @@ function ChatWindow({
         {avatarUrl && <img className="chat-header-avatar" src={avatarUrl} alt="" />}
         <span>{title}</span>
         {onOpenSettings && (
-          <button className="chat-header-settings" title="Paramètres du groupe" onClick={onOpenSettings}>
+          <button
+            className="chat-header-settings"
+            title="Paramètres du groupe"
+            onClick={onOpenSettings}
+          >
             ⚙️
           </button>
         )}
@@ -46,18 +52,24 @@ function ChatWindow({
 
       {typingUsername && <div className="typing-indicator">{typingUsername} écrit...</div>}
 
-      <form className="chat-input" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Écrire un message..."
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            onTyping?.();
-          }}
-        />
-        <button type="submit">Envoyer</button>
-      </form>
+      {readOnly ? (
+        <div className="chat-readonly-notice">
+          Cet utilisateur a supprimé son compte : la conversation est en lecture seule.
+        </div>
+      ) : (
+        <form className="chat-input" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            placeholder="Écrire un message..."
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              onTyping?.();
+            }}
+          />
+          <button type="submit">Envoyer</button>
+        </form>
+      )}
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import { isDeletedUser, DELETED_USER_LABEL } from '../utils/userName';
+import './DeletedUser.css';
+
 function MessageBubble({ message, isOwn }) {
   const time = new Date(message.createdAt).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
@@ -6,7 +9,15 @@ function MessageBubble({ message, isOwn }) {
 
   return (
     <div className={`message-bubble ${isOwn ? 'own' : ''}`}>
-      {!isOwn && <div className="message-author">{message.sender.username}</div>}
+      {!isOwn && (
+        <div className="message-author">
+          {isDeletedUser(message.sender) ? (
+            <span className="deleted-user-badge">{DELETED_USER_LABEL}</span>
+          ) : (
+            message.sender.username
+          )}
+        </div>
+      )}
       <div className="message-content">{message.content}</div>
       <div className="message-time">{time}</div>
     </div>
