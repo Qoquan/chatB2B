@@ -12,6 +12,9 @@ const MEMBERS_INCLUDE = {
 
 // Métadonnées d'une pièce jointe (jamais son contenu binaire, qui se télécharge
 // à part via GET /:conversationId/attachments/:attachmentId)
+// Réactions d'un message : uniquement l'emoji et l'auteur, dans l'ordre où elles ont été posées
+const REACTIONS_SELECT = { select: { emoji: true, userId: true }, orderBy: { createdAt: 'asc' } };
+
 const ATTACHMENT_SELECT = { select: { id: true, fileName: true, mimeType: true, size: true } };
 
 // Liste les conversations de l'utilisateur connecté, avec dernier message
@@ -219,7 +222,8 @@ const deleteConversation = asyncHandler(async (req, res) => {
   }
 
   await prisma.$transaction([
-    // Les pièces jointes doivent être supprimées avant leurs messages (clé étrangère).
+    // Réactions et pièces jointes doivent être supprimées avant leurs messages (clé étrangère).
+    prisma.reaction.deleteMany({ where: { message: { conversationId } } }),
     prisma.attachment.deleteMany({ where: { message: { conversationId } } }),
     prisma.message.deleteMany({ where: { conversationId } }),
     prisma.conversationMember.deleteMany({ where: { conversationId } }),
@@ -314,6 +318,7 @@ const getMessages = asyncHandler(async (req, res) => {
     include: {
       sender: { select: { id: true, username: true, avatarUrl: true, deletedAt: true } },
       attachment: ATTACHMENT_SELECT,
+      reactions: REACTIONS_SELECT,
     },
     orderBy: { createdAt: 'asc' },
   });

@@ -137,6 +137,9 @@ const deleteMe = asyncHandler(async (req, res) => {
       },
     });
 
+    // Ses propres réactions disparaissent avec le compte (activité personnelle).
+    await tx.reaction.deleteMany({ where: { userId: req.userId } });
+
     // Une conversation où il ne reste plus aucun compte actif n'intéresse plus
     // personne : on l'efface réellement, avec ses messages et ses fichiers.
     const abandoned = await tx.conversation.findMany({
@@ -144,6 +147,9 @@ const deleteMe = asyncHandler(async (req, res) => {
       select: { id: true },
     });
     const abandonedIds = abandoned.map((c) => c.id);
+    await tx.reaction.deleteMany({
+      where: { message: { conversationId: { in: abandonedIds } } },
+    });
     await tx.attachment.deleteMany({
       where: { message: { conversationId: { in: abandonedIds } } },
     });
