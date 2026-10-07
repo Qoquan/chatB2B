@@ -12,6 +12,7 @@ const {
   markAsRead,
 } = require('../controllers/conversations.controller');
 const { uploadAttachment, downloadAttachment } = require('../controllers/attachments.controller');
+const { toggleReaction } = require('../controllers/reactions.controller');
 
 const router = express.Router();
 
@@ -36,6 +37,13 @@ router.get(
   '/:conversationId/attachments/:attachmentId',
   requireConversationMember,
   downloadAttachment
+);
+
+// Réactions (emojis) sur un message : ajoute ou retire celle de l'utilisateur
+router.post(
+  '/:conversationId/messages/:messageId/reactions',
+  requireConversationMember,
+  toggleReaction
 );
 
 module.exports = router;

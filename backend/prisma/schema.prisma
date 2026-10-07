@@ -25,6 +25,7 @@ model User {
   memberships          ConversationMember[]
   messages             Message[]
   createdConversations Conversation[]
+  reactions            Reaction[]
 }
 
 model Conversation {
@@ -62,6 +63,7 @@ model Message {
   createdAt      DateTime     @default(now())
 
   attachment Attachment? // pièce jointe optionnelle (une par message)
+  reactions  Reaction[]
 }
 
 // Fichier envoyé dans une conversation. Le contenu est stocké directement en
@@ -77,4 +79,20 @@ model Attachment {
   message   Message  @relation(fields: [messageId], references: [id])
   messageId String   @unique
   createdAt DateTime @default(now())
+}
+
+// Réaction d'un utilisateur (un emoji) sur un message. Un utilisateur ne peut
+// poser qu'une fois le même emoji sur un message, mais peut en poser plusieurs
+// différents.
+model Reaction {
+  id        String   @id @default(uuid())
+  emoji     String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }

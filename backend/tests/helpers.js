@@ -20,6 +20,9 @@ function uniqueUser(label) {
 
 async function cleanupTestData({ userIds = [], conversationIds = [] } = {}) {
   if (conversationIds.length > 0) {
+    await prisma.reaction.deleteMany({
+      where: { message: { conversationId: { in: conversationIds } } },
+    });
     await prisma.attachment.deleteMany({
       where: { message: { conversationId: { in: conversationIds } } },
     });
@@ -32,6 +35,8 @@ async function cleanupTestData({ userIds = [], conversationIds = [] } = {}) {
   if (userIds.length > 0) {
     // Sécurité supplémentaire : au cas où un message/membership existerait
     // hors des conversations déjà nettoyées ci-dessus.
+    await prisma.reaction.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.reaction.deleteMany({ where: { message: { senderId: { in: userIds } } } });
     await prisma.attachment.deleteMany({ where: { message: { senderId: { in: userIds } } } });
     await prisma.message.deleteMany({ where: { senderId: { in: userIds } } });
     await prisma.conversationMember.deleteMany({ where: { userId: { in: userIds } } });
