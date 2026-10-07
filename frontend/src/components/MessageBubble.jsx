@@ -1,7 +1,8 @@
+import Attachment from './Attachment';
 import { isDeletedUser, DELETED_USER_LABEL } from '../utils/userName';
 import './DeletedUser.css';
 
-function MessageBubble({ message, isOwn }) {
+function MessageBubble({ message, isOwn, onMediaLoad }) {
   const time = new Date(message.createdAt).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -18,7 +19,14 @@ function MessageBubble({ message, isOwn }) {
           )}
         </div>
       )}
-      <div className="message-content">{message.content}</div>
+      {message.attachment && (
+        <Attachment
+          attachment={message.attachment}
+          conversationId={message.conversationId}
+          onMediaLoad={onMediaLoad}
+        />
+      )}
+      {message.content && <div className="message-content">{message.content}</div>}
       <div className="message-time">{time}</div>
     </div>
   );

@@ -14,6 +14,15 @@ const API_URL = import.meta.env.VITE_API_URL;
 const TYPING_TIMEOUT_MS = 3000;
 const TOAST_DURATION_MS = 4000;
 const BASE_TITLE = 'ChatB2B';
+const MAX_ATTACHMENT_MB = 5;
+
+// Texte court décrivant un message (toast, notification navigateur) : le texte
+// s'il existe, sinon le nom du fichier pour un message qui n'a qu'une pièce jointe.
+function describeMessage(message) {
+  if (message.content) return message.content;
+  if (message.attachment) return `[Pièce jointe] ${message.attachment.fileName}`;
+  return '';
+}
 
 function Chat() {
   const { user, token, logout } = useAuth();
@@ -26,6 +35,7 @@ function Chat() {
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [otherUsers, setOtherUsers] = useState([]);
   const [toasts, setToasts] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -132,11 +142,11 @@ function Chat() {
       );
 
       if (!isActiveConversation && !isOwnMessage) {
-        pushToast({ title: message.sender.username, body: message.content });
+        pushToast({ title: message.sender.username, body: describeMessage(message) });
 
         if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
           new Notification(message.sender.username, {
-            body: message.content,
+            body: describeMessage(message),
             icon: message.sender.avatarUrl || undefined,
           });
         }
@@ -257,6 +267,54 @@ function Chat() {
     [activeId, socketRef]
   );
 
+  // Envoie un fichier (+ légende optionnelle) dans la conversation ouverte. Le message
+  // n'est pas ajouté ici : le serveur le diffuse à tous les membres, expéditeur compris,
+  // via l'évènement new_message déjà géré plus haut.
+  const handleSendFile = useCallback(
+    async (file, caption) => {
+      if (!activeId) return false;
+
+      if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+        pushToast({
+          title: 'Envoi impossible',
+          body: `Fichier trop volumineux (${MAX_ATTACHMENT_MB} Mo maximum)`,
+        });
+        return false;
+      }
+
+      setUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (caption) formData.append('content', caption);
+
+        // Pas de Content-Type manuel : le navigateur ajoute lui-même la bonne valeur
+        // (multipart/form-data + séparateur) pour un FormData.
+        const res = await fetch(`${API_URL}/api/conversations/${activeId}/attachments`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          pushToast({
+            title: 'Envoi impossible',
+            body: data.error || "Erreur lors de l'envoi du fichier",
+          });
+          return false;
+        }
+        return true;
+      } catch {
+        pushToast({ title: 'Envoi impossible', body: 'Connexion au serveur impossible' });
+        return false;
+      } finally {
+        setUploading(false);
+      }
+    },
+    [activeId, token, pushToast]
+  );
+
   const handleTyping = useCallback(() => {
     if (!activeId) return;
     socketRef.current?.emit('typing', { conversationId: activeId, username: user.username });
@@ -343,9 +401,11 @@ function Chat() {
             }
             messages={messages}
             readOnly={isReadOnly}
+            uploading={uploading}
             currentUserId={user.id}
             typingUsername={typingUsername}
             onSend={handleSend}
+            onSendFile={handleSendFile}
             onTyping={handleTyping}
           />
         ) : (

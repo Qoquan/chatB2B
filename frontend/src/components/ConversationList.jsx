@@ -7,6 +7,14 @@ function getDisplayName(conv, currentUserId) {
   return getUserName(other?.user) || 'Conversation';
 }
 
+// Aperçu du dernier message : son texte, ou le nom du fichier s'il n'a qu'une pièce jointe
+function getPreview(lastMessage) {
+  if (!lastMessage) return 'Aucun message';
+  if (lastMessage.content) return lastMessage.content;
+  if (lastMessage.attachment) return `[Pièce jointe] ${lastMessage.attachment.fileName}`;
+  return '';
+}
+
 function ConversationList({ conversations, activeId, currentUserId, onSelect }) {
   return (
     <ul className="conversation-list">
@@ -19,9 +27,7 @@ function ConversationList({ conversations, activeId, currentUserId, onSelect }) 
             onClick={() => onSelect(conv.id)}
           >
             <div className="conversation-name">{getDisplayName(conv, currentUserId)}</div>
-            <div className="conversation-preview">
-              {lastMessage ? lastMessage.content : 'Aucun message'}
-            </div>
+            <div className="conversation-preview">{getPreview(lastMessage)}</div>
             {conv.unreadCount > 0 && <span className="unread-badge">{conv.unreadCount}</span>}
           </li>
         );
