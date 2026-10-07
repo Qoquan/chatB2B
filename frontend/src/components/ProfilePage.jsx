@@ -77,7 +77,12 @@ function ProfilePage({ onClose }) {
 
   async function handleDeleteAccount(e) {
     e.preventDefault();
-    if (!window.confirm('Supprimer définitivement votre compte et vos messages ?')) return;
+    if (
+      !window.confirm(
+        'Supprimer définitivement votre compte ? Vos messages resteront visibles sous le nom « Utilisateur supprimé ».'
+      )
+    )
+      return;
 
     setDeleteMessage(null);
     const { ok, data } = await request('DELETE', '/api/users/me', {
@@ -158,7 +163,9 @@ function ProfilePage({ onClose }) {
       <form className="profile-form" onSubmit={handleDeleteAccount}>
         <h3>Supprimer mon compte</h3>
         <p className="danger-text">
-          Action irréversible : vos messages et votre compte seront supprimés définitivement.
+          Action irréversible : votre compte et vos informations personnelles (e-mail, pseudo,
+          photo) seront effacés. Vos messages et fichiers déjà envoyés resteront visibles des autres
+          membres, sous le nom « Utilisateur supprimé ».
         </p>
         <label>
           Mot de passe (confirmation)

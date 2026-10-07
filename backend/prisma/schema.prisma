@@ -17,6 +17,9 @@ model User {
   username     String   @unique
   passwordHash String
   avatarUrl    String?
+  // Renseignée quand le compte est supprimé : le compte est alors anonymisé mais
+  // conservé, pour que les messages restent lisibles par les autres membres.
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
 
   memberships          ConversationMember[]

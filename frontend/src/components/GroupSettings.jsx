@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getUserName } from '../utils/userName';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -102,7 +103,9 @@ function GroupSettings({ conversation, currentUserId, token, onClose, onDeleted 
           />
         </label>
         <button type="submit">Enregistrer</button>
-        {infoMessage && <div className={`profile-message ${infoMessage.type}`}>{infoMessage.text}</div>}
+        {infoMessage && (
+          <div className={`profile-message ${infoMessage.type}`}>{infoMessage.text}</div>
+        )}
       </form>
 
       <div className="profile-form">
@@ -110,7 +113,7 @@ function GroupSettings({ conversation, currentUserId, token, onClose, onDeleted 
         <ul className="member-list">
           {conversation.members.map((m) => (
             <li key={m.user.id}>
-              {m.user.username}
+              {getUserName(m.user)}
               {m.user.id === conversation.createdById && ' (créateur)'}
             </li>
           ))}

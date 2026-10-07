@@ -1,8 +1,10 @@
+import { getUserName } from '../utils/userName';
+
 // Pour une conversation 1:1 sans nom, affiche le pseudo de l'autre membre
 function getDisplayName(conv, currentUserId) {
   if (conv.name) return conv.name;
   const other = conv.members?.find((m) => m.user.id !== currentUserId);
-  return other?.user.username || 'Conversation';
+  return getUserName(other?.user) || 'Conversation';
 }
 
 function ConversationList({ conversations, activeId, currentUserId, onSelect }) {

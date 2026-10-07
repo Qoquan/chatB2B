@@ -5,7 +5,9 @@ const { isValidAvatarUrl } = require('../utils/validators');
 const GROUP_NAME_MAX_LENGTH = 100;
 
 const MEMBERS_INCLUDE = {
-  members: { include: { user: { select: { id: true, username: true, avatarUrl: true } } } },
+  members: {
+    include: { user: { select: { id: true, username: true, avatarUrl: true, deletedAt: true } } },
+  },
 };
 
 // Métadonnées d'une pièce jointe (jamais son contenu binaire, qui se télécharge
@@ -19,7 +21,9 @@ const listConversations = asyncHandler(async (req, res) => {
     where: { members: { some: { userId: req.userId } } },
     include: {
       members: {
-        include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+        include: {
+          user: { select: { id: true, username: true, avatarUrl: true, deletedAt: true } },
+        },
       },
       messages: {
         orderBy: { createdAt: 'desc' },
@@ -73,7 +77,9 @@ const createConversation = asyncHandler(async (req, res) => {
   const allMemberIds = [...new Set([...memberIds, req.userId])];
 
   // Vérifie que tous les utilisateurs invités existent réellement
-  const existingUsersCount = await prisma.user.count({ where: { id: { in: allMemberIds } } });
+  const existingUsersCount = await prisma.user.count({
+    where: { id: { in: allMemberIds }, deletedAt: null },
+  });
   if (existingUsersCount !== allMemberIds.length) {
     return res
       .status(400)
@@ -213,6 +219,8 @@ const deleteConversation = asyncHandler(async (req, res) => {
   }
 
   await prisma.$transaction([
+    // Les pièces jointes doivent être supprimées avant leurs messages (clé étrangère).
+    prisma.attachment.deleteMany({ where: { message: { conversationId } } }),
     prisma.message.deleteMany({ where: { conversationId } }),
     prisma.conversationMember.deleteMany({ where: { conversationId } }),
     prisma.conversation.delete({ where: { id: conversationId } }),
@@ -255,7 +263,7 @@ const addMembers = asyncHandler(async (req, res) => {
 
   const uniqueIds = [...new Set(userIds)];
   const foundUsers = await prisma.user.findMany({
-    where: { id: { in: uniqueIds } },
+    where: { id: { in: uniqueIds }, deletedAt: null },
     select: { id: true },
   });
   if (foundUsers.length !== uniqueIds.length) {
@@ -304,7 +312,7 @@ const getMessages = asyncHandler(async (req, res) => {
   const messages = await prisma.message.findMany({
     where: { conversationId: conversationId },
     include: {
-      sender: { select: { id: true, username: true, avatarUrl: true } },
+      sender: { select: { id: true, username: true, avatarUrl: true, deletedAt: true } },
       attachment: ATTACHMENT_SELECT,
     },
     orderBy: { createdAt: 'asc' },

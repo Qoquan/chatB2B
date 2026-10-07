@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { asyncHandler } = require('../middleware/error.middleware');
+const { DELETED_PEER_ERROR, isReadOnlyDirectConversation } = require('../utils/deletedUsers');
 const {
   MAX_CAPTION_LENGTH,
   sanitizeFileName,
@@ -12,7 +13,7 @@ const {
 // (jamais son contenu binaire) : le contenu se télécharge à part, via la
 // route GET protégée ci-dessous.
 const MESSAGE_INCLUDE = {
-  sender: { select: { id: true, username: true, avatarUrl: true } },
+  sender: { select: { id: true, username: true, avatarUrl: true, deletedAt: true } },
   attachment: { select: { id: true, fileName: true, mimeType: true, size: true } },
 };
 
@@ -24,6 +25,10 @@ const MESSAGE_INCLUDE = {
 // requireConversationMember, placé avant le parseur d'upload.)
 const uploadAttachment = asyncHandler(async (req, res) => {
   const { conversationId } = req.params;
+
+  if (await isReadOnlyDirectConversation(conversationId)) {
+    return res.status(403).json({ error: DELETED_PEER_ERROR });
+  }
 
   if (!req.file) {
     return res.status(400).json({ error: 'Aucun fichier reçu (champ « file » attendu)' });
