@@ -3,8 +3,10 @@ import Attachment from './Attachment';
 import EmojiPicker from './EmojiPicker';
 import { REACTION_EMOJIS } from '../utils/emojis';
 import { isDeletedUser, DELETED_USER_LABEL } from '../utils/userName';
+import { getEmojiOnly, chunk } from '../utils/emojiText';
 import './DeletedUser.css';
 import './Reactions.css';
+import './EmojiSize.css';
 
 // Regroupe les réactions par emoji : { emoji, count, mine }, dans l'ordre d'apparition
 function groupReactions(reactions, currentUserId) {
@@ -16,6 +18,26 @@ function groupReactions(reactions, currentUserId) {
     groups.set(emoji, group);
   });
   return [...groups.values()];
+}
+
+// Texte du message. Un message composé UNIQUEMENT d'emojis est affiché en très grand :
+// 1 ou 2 emojis sur une ligne, et au-delà par rangées de 2 (comme plusieurs messages
+// empilés). Un emoji au milieu d'un texte garde la taille normale.
+function MessageText({ text }) {
+  const emojis = getEmojiOnly(text);
+  if (!emojis) return <div className="message-content">{text}</div>;
+
+  return (
+    <div className="message-content emoji-only">
+      {chunk(emojis, 2).map((row, index) => (
+        <div key={index} className="emoji-row">
+          {row.map((emoji, i) => (
+            <span key={i}>{emoji}</span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function MessageBubble({ message, isOwn, currentUserId, onMediaLoad, onToggleReaction }) {
@@ -49,7 +71,7 @@ function MessageBubble({ message, isOwn, currentUserId, onMediaLoad, onToggleRea
           onMediaLoad={onMediaLoad}
         />
       )}
-      {message.content && <div className="message-content">{message.content}</div>}
+      {message.content && <MessageText text={message.content} />}
       <div className="message-time">{time}</div>
 
       {groups.length > 0 && (
