@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './Login.css';
+import './RememberMe.css';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -15,6 +16,7 @@ const CATS = [
 function Login({ onLoginSuccess, onSwitchToRegister }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -27,7 +29,7 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
       const data = await res.json();
 
@@ -36,9 +38,8 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
         return;
       }
 
-      localStorage.setItem('token', data.token);
       setMessage({ type: 'success', text: `Bienvenue ${data.user.username} 🐱` });
-      onLoginSuccess?.(data);
+      onLoginSuccess?.(data, rememberMe);
     } catch (err) {
       setMessage({ type: 'error', text: 'Impossible de contacter le serveur' });
     } finally {
@@ -77,6 +78,14 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          <label className="remember-me">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <span>Se souvenir de moi pendant 8 jours</span>
+          </label>
           <button type="submit" disabled={loading}>
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>

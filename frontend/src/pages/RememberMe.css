@@ -1,0 +1,22 @@
+/* Case « Se souvenir de moi » de la page de connexion.
+   Sélecteur plus précis que « .login-form input » (Login.css) pour que la
+   case à cocher garde sa taille normale au lieu d'être étirée comme un champ texte. */
+.login-form .remember-me {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #74747c;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.login-form .remember-me input {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  margin: 0;
+  border-radius: 4px;
+  accent-color: #57575f;
+  cursor: pointer;
+}

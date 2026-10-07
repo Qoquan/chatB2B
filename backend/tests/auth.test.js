@@ -7,6 +7,7 @@
 
 import { describe, it, expect, afterAll } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import app from '../src/app.js';
 import { uniqueUser, cleanupTestData } from './helpers.js';
 
@@ -73,6 +74,47 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('token');
     expect(res.body.user.email).toBe(user.email.toLowerCase());
+  });
+
+  it('« Se souvenir de moi » : le jeton dure 8 jours', async () => {
+    const user = uniqueUser('remember');
+    const register = await request(app).post('/api/auth/register').send(user);
+    createdUserIds.push(register.body.user.id);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: user.password, rememberMe: true });
+
+    expect(res.status).toBe(200);
+    const { iat, exp } = jwt.decode(res.body.token);
+    expect(exp - iat).toBe(8 * 24 * 60 * 60);
+  });
+
+  it('sans « Se souvenir de moi » : le jeton dure 1 jour', async () => {
+    const user = uniqueUser('noremember');
+    const register = await request(app).post('/api/auth/register').send(user);
+    createdUserIds.push(register.body.user.id);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: user.password });
+
+    expect(res.status).toBe(200);
+    const { iat, exp } = jwt.decode(res.body.token);
+    expect(exp - iat).toBe(24 * 60 * 60);
+  });
+
+  it("ignore une valeur rememberMe qui n'est pas un vrai booléen", async () => {
+    const user = uniqueUser('fakeremember');
+    const register = await request(app).post('/api/auth/register').send(user);
+    createdUserIds.push(register.body.user.id);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: user.password, rememberMe: 'true' });
+
+    const { iat, exp } = jwt.decode(res.body.token);
+    expect(exp - iat).toBe(24 * 60 * 60);
   });
 
   it('refuse un mauvais mot de passe (401, message générique)', async () => {
