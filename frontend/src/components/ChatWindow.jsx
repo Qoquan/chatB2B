@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
+import EmojiPicker from './EmojiPicker';
+import { INPUT_EMOJIS } from '../utils/emojis';
 import './Attachment.css';
 import './DeletedUser.css';
+import './Reactions.css';
 
 // Types acceptés par le sélecteur de fichiers (le serveur revérifie de toute façon)
 const ACCEPTED_FILES = '.png,.jpg,.jpeg,.gif,.webp,.pdf,.docx,.xlsx,.pptx,.txt,.csv';
@@ -16,12 +19,15 @@ function ChatWindow({
   onSend,
   onSendFile,
   onTyping,
+  onToggleReaction,
   onOpenSettings,
   readOnly,
 }) {
   const [draft, setDraft] = useState('');
+  const [showEmojis, setShowEmojis] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textInputRef = useRef(null);
 
   function scrollToBottom() {
     bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -36,6 +42,13 @@ function ChatWindow({
     if (!draft.trim()) return;
     onSend(draft.trim());
     setDraft('');
+  }
+
+  // Ajoute l'emoji choisi à la fin du message en cours, puis remet le curseur dans le champ
+  function handlePickEmoji(emoji) {
+    setDraft((current) => current + emoji);
+    setShowEmojis(false);
+    textInputRef.current?.focus();
   }
 
   // Envoie le fichier choisi, avec le texte déjà saisi comme légende éventuelle
@@ -72,6 +85,8 @@ function ChatWindow({
             key={msg.id}
             message={msg}
             isOwn={msg.senderId === currentUserId}
+            currentUserId={currentUserId}
+            onToggleReaction={readOnly ? undefined : onToggleReaction}
             // Une image qui finit de charger agrandit la bulle : on recale le
             // défilement en bas, mais seulement pour le tout dernier message.
             onMediaLoad={msg.id === lastMessageId ? scrollToBottom : undefined}
@@ -115,7 +130,21 @@ function ChatWindow({
               />
             </svg>
           </button>
+          <button
+            type="button"
+            className="emoji-button"
+            onClick={() => setShowEmojis((open) => !open)}
+            aria-label="Insérer un emoji"
+            aria-expanded={showEmojis}
+            title="Insérer un emoji"
+          >
+            😊
+          </button>
+          {showEmojis && (
+            <EmojiPicker emojis={INPUT_EMOJIS} onPick={handlePickEmoji} label="Choisir un emoji" />
+          )}
           <input
+            ref={textInputRef}
             type="text"
             placeholder="Écrire un message..."
             value={draft}

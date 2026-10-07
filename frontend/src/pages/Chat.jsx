@@ -16,6 +16,11 @@ const TOAST_DURATION_MS = 4000;
 const BASE_TITLE = 'ChatB2B';
 const MAX_ATTACHMENT_MB = 5;
 
+// Remplace les réactions d'un message dans la liste affichée (sans toucher aux autres)
+function withReactions(messages, messageId, reactions) {
+  return messages.map((m) => (m.id === messageId ? { ...m, reactions } : m));
+}
+
 // Texte court décrivant un message (toast, notification navigateur) : le texte
 // s'il existe, sinon le nom du fichier pour un message qui n'a qu'une pièce jointe.
 function describeMessage(message) {
@@ -153,6 +158,11 @@ function Chat() {
       }
     }
 
+    function handleReactionUpdated({ conversationId, messageId, reactions }) {
+      if (conversationId !== activeIdRef.current) return;
+      setMessages((prev) => withReactions(prev, messageId, reactions));
+    }
+
     function handleConversationUpdated(conversation) {
       setConversations((prev) =>
         prev.map((c) => (c.id === conversation.id ? { ...c, ...conversation } : c))
@@ -167,12 +177,14 @@ function Chat() {
     socket.on('conversation_updated', handleConversationUpdated);
     socket.on('conversation_deleted', handleConversationDeleted);
     socket.on('new_message', handleNewMessage);
+    socket.on('reaction_updated', handleReactionUpdated);
 
     return () => {
       socket.off('conversation_created', handleConversationCreated);
       socket.off('conversation_updated', handleConversationUpdated);
       socket.off('conversation_deleted', handleConversationDeleted);
       socket.off('new_message', handleNewMessage);
+      socket.off('reaction_updated', handleReactionUpdated);
     };
   }, [socketRef, user, pushToast, removeConversation]);
 
@@ -265,6 +277,33 @@ function Chat() {
       socketRef.current?.emit('send_message', { conversationId: activeId, content });
     },
     [activeId, socketRef]
+  );
+
+  // Ajoute ou retire ma réaction sur un message. Le serveur répond avec la liste à jour
+  // (appliquée tout de suite) et la diffuse aux autres membres via reaction_updated.
+  const handleToggleReaction = useCallback(
+    async (messageId, emoji) => {
+      if (!activeId) return;
+      try {
+        const res = await fetch(
+          `${API_URL}/api/conversations/${activeId}/messages/${messageId}/reactions`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emoji }),
+          }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          pushToast({ title: 'Réaction impossible', body: data.error || 'Erreur du serveur' });
+          return;
+        }
+        setMessages((prev) => withReactions(prev, data.messageId, data.reactions));
+      } catch {
+        pushToast({ title: 'Réaction impossible', body: 'Connexion au serveur impossible' });
+      }
+    },
+    [activeId, token, pushToast]
   );
 
   // Envoie un fichier (+ légende optionnelle) dans la conversation ouverte. Le message
@@ -406,6 +445,7 @@ function Chat() {
             typingUsername={typingUsername}
             onSend={handleSend}
             onSendFile={handleSendFile}
+            onToggleReaction={handleToggleReaction}
             onTyping={handleTyping}
           />
         ) : (

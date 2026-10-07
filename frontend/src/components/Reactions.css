@@ -1,0 +1,160 @@
+/* Réactions (emojis) sous les messages et sélecteur d'emojis du champ de saisie.
+   Fichier séparé de Chat.css pour limiter les conflits de fusion avec les
+   autres chantiers d'interface. */
+
+.message-bubble {
+  position: relative;
+}
+
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.reaction-chip {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+button.reaction-chip {
+  cursor: pointer;
+}
+
+.reaction-chip.mine {
+  border-color: #5865f2;
+  background: #e8eaff;
+  color: #2f3a9e;
+}
+
+.message-bubble.own .reaction-chip {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.message-bubble.own .reaction-chip.mine {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Bouton « réagir » : discret, visible au survol du message ou quand il est ouvert */
+.reaction-add {
+  position: absolute;
+  top: -0.7rem;
+  right: -0.4rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid #ccc;
+  border-radius: 50%;
+  background: white;
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.message-bubble.own .reaction-add {
+  right: auto;
+  left: -0.4rem;
+}
+
+.message-bubble:hover .reaction-add,
+.reaction-add:focus-visible,
+.reaction-add[aria-expanded='true'] {
+  opacity: 1;
+}
+
+/* Sur écran tactile, il n'y a pas de survol : le bouton reste visible */
+@media (hover: none) {
+  .reaction-add {
+    opacity: 0.8;
+  }
+}
+
+.emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.3rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  z-index: 20;
+}
+
+.emoji-option {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.emoji-option:hover {
+  background: #f0f0f5;
+}
+
+.reaction-picker {
+  /* Dans le flux de la bulle (pas en position absolue) : le sélecteur ne peut
+     ainsi jamais être coupé par le bord de la zone de messages ni passer sous le menu. */
+  width: max-content;
+  min-width: 13.5rem;
+  max-width: 100%;
+  margin-top: 0.4rem;
+  color: #222;
+}
+
+/* Sélecteur d'emojis du champ de saisie */
+.chat-input {
+  position: relative;
+}
+
+.chat-input .emoji-button {
+  margin-right: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-input .emoji-button:hover {
+  background: #f0f0f5;
+}
+
+.chat-input .emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0.75rem;
+  width: min(18rem, calc(100% - 1.5rem));
+  margin-bottom: 0.25rem;
+}
+
+/* Les boutons du formulaire sont bleus par défaut : on garde ceux du sélecteur neutres */
+.chat-input .emoji-picker .emoji-option {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.chat-input .emoji-picker .emoji-option:hover {
+  background: #f0f0f5;
+}
