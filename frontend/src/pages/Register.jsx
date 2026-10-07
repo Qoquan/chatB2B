@@ -37,7 +37,6 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
         return;
       }
 
-      localStorage.setItem('token', data.token);
       setMessage({ type: 'success', text: `Bienvenue ${data.user.username} 🐱` });
       onRegisterSuccess?.(data);
     } catch (err) {
