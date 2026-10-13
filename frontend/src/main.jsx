@@ -1,12 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { HashRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 
+// HashRouter : les adresses ressemblent à /#/pricing, ce qui évite toute
+// configuration de redirection sur l'hébergement statique de Render.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <HashRouter>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </HashRouter>
   </React.StrictMode>
 );
