@@ -28,6 +28,21 @@ async function socketAuthMiddleware(socket, next) {
   }
 }
 
+// Fait rejoindre à la connexion les rooms des conversations dont l'utilisateur
+// est réellement membre. Sans `conversationIds`, ce sont toutes ses conversations.
+// L'appartenance est toujours vérifiée en base : un identifiant envoyé par le
+// client ne suffit jamais à écouter une conversation.
+async function joinMemberRooms(socket, conversationIds) {
+  const memberships = await prisma.conversationMember.findMany({
+    where: {
+      userId: socket.userId,
+      ...(conversationIds ? { conversationId: { in: conversationIds } } : {}),
+    },
+    select: { conversationId: true },
+  });
+  memberships.forEach((m) => socket.join(`conversation:${m.conversationId}`));
+}
+
 function registerChatHandlers(io) {
   io.use(socketAuthMiddleware);
 
@@ -40,12 +55,20 @@ function registerChatHandlers(io) {
     // besoin de connaître son socket.id.
     socket.join(`user:${socket.userId}`);
 
-    // L'utilisateur rejoint les "rooms" de toutes ses conversations
+    // Fait à chaque connexion, donc aussi après une reconnexion : le serveur a
+    // alors oublié les rooms du client, qui ne recevrait plus aucun message.
+    joinMemberRooms(socket).catch((err) => console.error(err));
+
+    // Le client demande à rejoindre ses conversations : seules celles dont il est
+    // membre sont retenues
     socket.on('join_conversations', async (conversationIds) => {
       if (!Array.isArray(conversationIds)) return;
-      conversationIds
-        .filter((id) => typeof id === 'string' && id.trim().length > 0)
-        .forEach((id) => socket.join(`conversation:${id}`));
+      const ids = conversationIds.filter((id) => typeof id === 'string' && id.trim().length > 0);
+      try {
+        await joinMemberRooms(socket, ids);
+      } catch (err) {
+        console.error(err);
+      }
     });
 
     // Envoi d'un message
@@ -87,7 +110,9 @@ function registerChatHandlers(io) {
 
     // Indicateur "en train d'écrire"
     socket.on('typing', ({ conversationId, username }) => {
-      socket.to(`conversation:${conversationId}`).emit('user_typing', { username });
+      const room = `conversation:${conversationId}`;
+      if (!socket.rooms.has(room)) return;
+      socket.to(room).emit('user_typing', { username });
     });
 
     socket.on('disconnect', () => {
