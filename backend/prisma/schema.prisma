@@ -64,6 +64,9 @@ model Message {
 
   attachment Attachment? // pièce jointe optionnelle (une par message)
   reactions  Reaction[]
+
+  // Accélère l'historique paginé et le calcul des messages non lus
+  @@index([conversationId, createdAt])
 }
 
 // Fichier envoyé dans une conversation. Le contenu est stocké directement en

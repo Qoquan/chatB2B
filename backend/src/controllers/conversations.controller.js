@@ -3,6 +3,8 @@ const { asyncHandler } = require('../middleware/error.middleware');
 const { isValidAvatarUrl } = require('../utils/validators');
 
 const GROUP_NAME_MAX_LENGTH = 100;
+const MESSAGES_PAGE_SIZE = 50;
+const MESSAGES_MAX_PAGE_SIZE = 100;
 
 const MEMBERS_INCLUDE = {
   members: {
@@ -305,12 +307,28 @@ const addMembers = asyncHandler(async (req, res) => {
   res.json(updated);
 });
 
-// Récupère les messages d'une conversation (avec vérification d'accès)
+// Récupère une page de messages d'une conversation (avec vérification d'accès).
+// Sans paramètre : les plus récents. `before=<id>` : ceux qui précèdent ce message.
+// Le résultat reste trié du plus ancien au plus récent, prêt à être affiché.
 const getMessages = asyncHandler(async (req, res) => {
   const { conversationId } = req.params;
+  const { before } = req.query;
 
   if (!(await findMembership(req.userId, conversationId))) {
     return res.status(403).json({ error: 'Accès refusé à cette conversation' });
+  }
+
+  const requested = Number.parseInt(req.query.limit, 10);
+  const limit = Math.min(requested > 0 ? requested : MESSAGES_PAGE_SIZE, MESSAGES_MAX_PAGE_SIZE);
+
+  if (before !== undefined) {
+    const cursorMessage = await prisma.message.findFirst({
+      where: { id: String(before), conversationId },
+      select: { id: true },
+    });
+    if (!cursorMessage) {
+      return res.status(404).json({ error: 'Message introuvable' });
+    }
   }
 
   const messages = await prisma.message.findMany({
@@ -320,10 +338,13 @@ const getMessages = asyncHandler(async (req, res) => {
       attachment: ATTACHMENT_SELECT,
       reactions: REACTIONS_SELECT,
     },
-    orderBy: { createdAt: 'asc' },
+    // L'id départage deux messages créés à la même milliseconde
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit,
+    ...(before !== undefined ? { cursor: { id: String(before) }, skip: 1 } : {}),
   });
 
-  res.json(messages);
+  res.json(messages.reverse());
 });
 
 // Marque une conversation comme lue par l'utilisateur connecté
