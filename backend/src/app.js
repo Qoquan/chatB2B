@@ -14,6 +14,10 @@ const { corsOptionsDelegate } = require('./config/cors');
 
 const app = express();
 
+// Render place l'application derrière un proxy : sans ce réglage, tous les
+// visiteurs auraient la même adresse IP pour la limitation des connexions.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: corsOptionsDelegate }));
 app.use(express.json());
 
