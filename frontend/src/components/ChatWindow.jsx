@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
 import EmojiPicker from './EmojiPicker';
 import { INPUT_EMOJIS } from '../utils/emojis';
@@ -21,11 +21,18 @@ function ChatWindow({
   onTyping,
   onToggleReaction,
   onOpenSettings,
+  onLoadOlder,
+  hasOlderMessages,
+  loadingOlder,
   readOnly,
 }) {
   const [draft, setDraft] = useState('');
   const [showEmojis, setShowEmojis] = useState(false);
   const bottomRef = useRef(null);
+  const messagesRef = useRef(null);
+  const lastMessageIdRef = useRef(null);
+  // Hauteur de la liste avant l'ajout de messages plus anciens (0 sinon)
+  const heightBeforeOlderRef = useRef(0);
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
 
@@ -33,9 +40,26 @@ function ChatWindow({
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages]);
+  const lastMessageId = messages[messages.length - 1]?.id;
+
+  // Descend en bas pour un nouveau message ou une autre conversation. Après le
+  // chargement de messages plus anciens, garde au contraire la lecture en place.
+  useLayoutEffect(() => {
+    if (lastMessageId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = lastMessageId;
+      heightBeforeOlderRef.current = 0;
+      scrollToBottom();
+    } else if (heightBeforeOlderRef.current && messagesRef.current) {
+      const list = messagesRef.current;
+      list.scrollTop += list.scrollHeight - heightBeforeOlderRef.current;
+      heightBeforeOlderRef.current = 0;
+    }
+  }, [messages, lastMessageId]);
+
+  function handleLoadOlder() {
+    heightBeforeOlderRef.current = messagesRef.current?.scrollHeight || 0;
+    onLoadOlder?.();
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -61,8 +85,6 @@ function ChatWindow({
     });
   }
 
-  const lastMessageId = messages[messages.length - 1]?.id;
-
   return (
     <div className="chat-window">
       <div className="chat-header">
@@ -72,6 +94,7 @@ function ChatWindow({
           <button
             className="chat-header-settings"
             title="Paramètres du groupe"
+            aria-label="Paramètres du groupe"
             onClick={onOpenSettings}
           >
             ⚙️
@@ -79,7 +102,17 @@ function ChatWindow({
         )}
       </div>
 
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesRef}>
+        {hasOlderMessages && (
+          <button
+            type="button"
+            className="load-older"
+            onClick={handleLoadOlder}
+            disabled={loadingOlder}
+          >
+            {loadingOlder ? 'Chargement…' : 'Afficher les messages précédents'}
+          </button>
+        )}
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
@@ -147,6 +180,7 @@ function ChatWindow({
             ref={textInputRef}
             type="text"
             placeholder="Écrire un message..."
+            aria-label="Écrire un message"
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);

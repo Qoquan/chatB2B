@@ -596,16 +596,16 @@
   z-index: 5;
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-  color: #4a4a52;
+  background: rgba(255, 255, 255, 0.12);
+  color: #e8e9ec;
   font-family: 'Segoe UI', sans-serif;
   font-size: 0.9rem;
   text-decoration: none;
-  border: 1px solid #cfcfd4;
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .back-home:hover {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 /* ----- Mobile ----- */

@@ -8,11 +8,13 @@ import GroupSettings from '../components/GroupSettings';
 import { getUserName, isDeletedUser } from '../utils/userName';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
+import Avatar from '../components/Avatar';
 import './Chat.css';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const TYPING_TIMEOUT_MS = 3000;
 const TOAST_DURATION_MS = 4000;
+const MESSAGES_PAGE_SIZE = 50; // même valeur que le serveur
 const BASE_TITLE = 'ChatB2B';
 const MAX_ATTACHMENT_MB = 5;
 
@@ -37,6 +39,8 @@ function Chat() {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [typingUsername, setTypingUsername] = useState(null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [otherUsers, setOtherUsers] = useState([]);
   const [toasts, setToasts] = useState([]);
@@ -225,12 +229,38 @@ function Chat() {
       headers: authHeaders,
     })
       .then((res) => res.json())
-      .then(setMessages);
+      .then((page) => {
+        setMessages(page);
+        setHasOlderMessages(page.length === MESSAGES_PAGE_SIZE);
+      });
 
     fetch(`${API_URL}/api/conversations/${conversationId}/read`, {
       method: 'POST',
       headers: authHeaders,
     });
+  }
+
+  // Charge la page de messages qui précède le plus ancien message affiché
+  async function handleLoadOlder() {
+    if (!activeId || !messages.length || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/conversations/${activeId}/messages?before=${messages[0].id}`,
+        { headers: authHeaders }
+      );
+      const page = await res.json();
+      if (!res.ok) {
+        pushToast({ title: 'Chargement impossible', body: page.error || 'Erreur du serveur' });
+        return;
+      }
+      setMessages((prev) => [...page, ...prev]);
+      setHasOlderMessages(page.length === MESSAGES_PAGE_SIZE);
+    } catch {
+      pushToast({ title: 'Chargement impossible', body: 'Connexion au serveur impossible' });
+    } finally {
+      setLoadingOlder(false);
+    }
   }
 
   function handleOpenNewConversation() {
@@ -363,7 +393,7 @@ function Chat() {
   const activeTitle =
     activeConversation?.name ||
     getUserName(activeConversation?.members?.find((m) => m.user.id !== user.id)?.user) ||
-    'Sélectionne une conversation';
+    'Sélectionnez une conversation';
   // Discussion privée dont l'autre personne a supprimé son compte : lecture seule
   const isReadOnly =
     Boolean(activeConversation) &&
@@ -374,24 +404,27 @@ function Chat() {
     <div className="chat-page">
       <ToastContainer toasts={toasts} />
       <aside className={`chat-sidebar${menuOpen ? ' open' : ''}`}>
-        <div className="sidebar-header">
-          <span>
-            {user.username}
-            <button
-              title="Mon profil"
-              onClick={() => {
-                setShowProfile(true);
-                setMenuOpen(false);
-              }}
-            >
-              ⚙️
-            </button>
-          </span>
-          <div>
-            <button onClick={handleOpenNewConversation}>+</button>
-            <button onClick={logout}>Déconnexion</button>
-          </div>
+        <div className="sidebar-brand">
+          <span aria-hidden="true">🐾</span> ChatB2B
         </div>
+        <div className="sidebar-header">
+          <Avatar name={user.username} src={user.avatarUrl} />
+          <span className="sidebar-username">{user.username}</span>
+          <button
+            className="icon-button"
+            title="Mon profil"
+            aria-label="Mon profil"
+            onClick={() => {
+              setShowProfile(true);
+              setMenuOpen(false);
+            }}
+          >
+            ⚙️
+          </button>
+        </div>
+        <button className="new-conversation-button" onClick={handleOpenNewConversation}>
+          + Nouvelle conversation
+        </button>
         {showNewConversation && (
           <NewConversationPanel
             users={otherUsers}
@@ -406,6 +439,9 @@ function Chat() {
           currentUserId={user.id}
           onSelect={handleSelectConversation}
         />
+        <button className="logout-button" onClick={logout}>
+          Déconnexion
+        </button>
       </aside>
       {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)} />}
 
@@ -439,6 +475,9 @@ function Chat() {
               activeConversation?.isGroup ? () => setShowGroupSettings(true) : undefined
             }
             messages={messages}
+            hasOlderMessages={hasOlderMessages}
+            loadingOlder={loadingOlder}
+            onLoadOlder={handleLoadOlder}
             readOnly={isReadOnly}
             uploading={uploading}
             currentUserId={user.id}
@@ -449,7 +488,7 @@ function Chat() {
             onTyping={handleTyping}
           />
         ) : (
-          <div className="chat-window chat-empty">Sélectionne une conversation dans le menu</div>
+          <div className="chat-window chat-empty">Sélectionnez une conversation dans le menu</div>
         )}
       </main>
     </div>
