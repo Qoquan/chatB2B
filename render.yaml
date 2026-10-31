@@ -1,5 +1,5 @@
-# Infra-as-code Render — permet de déployer backend + DB en un clic
-# via "New > Blueprint" sur render.com en pointant ce repo
+# Infra-as-code Render : décrit le backend et le site statique.
+# La base PostgreSQL est hébergée sur Neon : ses deux URL se renseignent dans Render.
 
 services:
   - type: web
@@ -13,14 +13,12 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: JWT_EXPIRES_IN
-        value: 7d
       - key: DATABASE_URL
-        fromDatabase:
-          name: chatb2b-db
-          property: connectionString
+        sync: false # connexion Neon "pooled" (hôte contenant "-pooler")
+      - key: DIRECT_URL
+        sync: false # connexion Neon directe, utilisée par les migrations
       - key: FRONTEND_URL
-        sync: false # à renseigner manuellement (URL Vercel ou Render du frontend)
+        sync: false # URL publique du site statique
 
   - type: web
     name: chatb2b-frontend
@@ -33,7 +31,3 @@ services:
         sync: false
       - key: VITE_SOCKET_URL
         sync: false
-
-databases:
-  - name: chatb2b-db
-    plan: free
