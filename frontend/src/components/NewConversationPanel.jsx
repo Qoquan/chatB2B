@@ -26,7 +26,9 @@ function NewConversationPanel({ users, onSelectUser, onCreateGroup, onClose }) {
     <div className="new-conversation-panel">
       <div className="new-conversation-header">
         <span>{groupMode ? 'Nouveau groupe' : 'Nouvelle conversation'}</span>
-        <button onClick={onClose}>✕</button>
+        <button onClick={onClose} aria-label="Fermer">
+          ✕
+        </button>
       </div>
 
       {!groupMode ? (
@@ -48,6 +50,7 @@ function NewConversationPanel({ users, onSelectUser, onCreateGroup, onClose }) {
           <input
             type="text"
             placeholder="Nom du groupe"
+            aria-label="Nom du groupe"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
             maxLength={100}
@@ -56,6 +59,7 @@ function NewConversationPanel({ users, onSelectUser, onCreateGroup, onClose }) {
           <input
             type="url"
             placeholder="Photo du groupe (URL https, facultatif)"
+            aria-label="Photo du groupe"
             value={groupAvatarUrl}
             onChange={(e) => setGroupAvatarUrl(e.target.value)}
           />

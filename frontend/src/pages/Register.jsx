@@ -3,15 +3,6 @@ import './Login.css';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const CATS = [
-  { top: '10%', left: '8%', size: '1.8rem', delay: '0.3s' },
-  { top: '18%', left: '82%', size: '2rem', delay: '1.2s' },
-  { top: '72%', left: '88%', size: '1.5rem', delay: '2.1s' },
-  { top: '82%', left: '10%', size: '2rem', delay: '0.8s' },
-  { top: '48%', left: '5%', size: '1.3rem', delay: '1.8s' },
-  { top: '38%', left: '90%', size: '1.6rem', delay: '2.6s' },
-];
-
 function Register({ onRegisterSuccess, onSwitchToLogin }) {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -37,7 +28,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
         return;
       }
 
-      setMessage({ type: 'success', text: `Bienvenue ${data.user.username} 🐱` });
+      setMessage({ type: 'success', text: `Bienvenue ${data.user.username}` });
       onRegisterSuccess?.(data);
     } catch (err) {
       setMessage({ type: 'error', text: 'Impossible de contacter le serveur' });
@@ -48,24 +39,17 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
 
   return (
     <div className="login-page">
-      {CATS.map((c, i) => (
-        <span
-          key={i}
-          className="cat"
-          style={{ top: c.top, left: c.left, fontSize: c.size, animationDelay: c.delay }}
-        >
-          🐱
-        </span>
-      ))}
-
       <div className="login-card">
-        <h1>ChatB2B</h1>
-        <p className="subtitle">Crée ton compte 🐾</p>
+        <h1>
+          <span aria-hidden="true">🐾</span> ChatB2B
+        </h1>
+        <p className="subtitle">Créez votre compte en quelques secondes</p>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <input
             type="email"
             placeholder="Email"
+            aria-label="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -73,6 +57,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
           <input
             type="text"
             placeholder="Nom d'utilisateur"
+            aria-label="Nom d'utilisateur"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -80,6 +65,7 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
           <input
             type="password"
             placeholder="Mot de passe"
+            aria-label="Mot de passe"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -91,9 +77,9 @@ function Register({ onRegisterSuccess, onSwitchToLogin }) {
 
         {message && <div className={`message ${message.type}`}>{message.text}</div>}
 
-        <p className="switch-link" onClick={onSwitchToLogin}>
+        <button type="button" className="switch-link" onClick={onSwitchToLogin}>
           Déjà un compte ? Se connecter
-        </p>
+        </button>
       </div>
     </div>
   );

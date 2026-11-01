@@ -35,7 +35,6 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chatb2b_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/chatb2b_test
       JWT_SECRET: ci_test_secret_do_not_use_in_prod
-      JWT_EXPIRES_IN: 1h
 
     steps:
       - uses: actions/checkout@v4
@@ -62,6 +61,9 @@ jobs:
       - name: Tests (Vitest)
         run: npm test
 
+      - name: Seed (le jeu de données de démonstration reste valide)
+        run: npm run db:seed
+
   frontend:
     name: Frontend — Lint & Build check
     runs-on: ubuntu-latest
@@ -77,4 +79,5 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm install
       - run: npm run lint
+      - run: npm run format:check
       - run: npm run build
