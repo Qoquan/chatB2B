@@ -1,0 +1,35 @@
+name: Backup database
+
+# Sauvegarde automatique de la base Neon (production), chaque nuit, ou à la demande.
+# Le fichier est chiffré avant d'être stocké : le dépôt est public, la sauvegarde contient des données personnelles.
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump the database
+        env:
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+        run: docker run --rm postgres:18 pg_dump "$DATABASE_URL_BACKUP" -Fc > chatb2b.dump
+
+      - name: Encrypt the dump
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 -o "chatb2b-$(date +%F).dump.gpg" chatb2b.dump
+          rm chatb2b.dump
+
+      - name: Keep the encrypted backup for 14 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatb2b-backup
+          path: chatb2b-*.dump.gpg
+          retention-days: 14
